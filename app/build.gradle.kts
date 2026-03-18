@@ -42,11 +42,11 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    implementation("org.vosk:vosk-android:0.3.45") // Vosk Android library
+    implementation("com.alphacephei:vosk-android:0.3.75") // Vosk Android library
 
     // ML Kit Translation and Language Identification
-    implementation("com.google.mlkit:language-id:17.0.4")
-    implementation("com.google.mlkit:translate:17.0.2")
+    implementation("com.google.mlkit:language-id:17.0.6")
+    implementation("com.google.mlkit:translate:17.0.3")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
