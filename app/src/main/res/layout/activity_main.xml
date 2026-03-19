@@ -11,7 +11,7 @@
         android:id="@+id/app_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Offline Translator"
+        android:text="@string/app_title"
         android:textSize="28sp"
         android:textStyle="bold"
         android:textColor="@color/primary_color"
@@ -24,7 +24,7 @@
         android:id="@+id/subtitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="English ↔ Spanish Conversation"
+        android:text="@string/subtitle_en_es"
         android:textSize="16sp"
         android:textColor="@color/secondary_color"
         android:layout_marginTop="8dp"
@@ -44,21 +44,29 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <ScrollView
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:padding="16dp">
+            android:layout_height="match_parent">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/conversation_recycler_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:padding="16dp" />
 
             <TextView
-                android:id="@+id/result_text_view"
+                android:id="@+id/empty_state_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Press the microphone button to start a conversation"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:text="@string/empty_state"
                 android:textSize="16sp"
-                android:textColor="@color/text_color"
-                android:lineSpacingExtra="4dp" />
+                android:textColor="@color/text_secondary"
+                android:padding="16dp" />
 
-        </ScrollView>
+        </FrameLayout>
 
     </androidx.cardview.widget.CardView>
 
@@ -73,21 +81,66 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <TextView
-            android:id="@+id/status_text"
+        <LinearLayout
+            android:id="@+id/status_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Ready to listen"
-            android:textSize="14sp"
-            android:textColor="@color/secondary_color"
             android:gravity="center"
-            android:layout_marginBottom="16dp" />
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <ImageView
+                android:id="@+id/listening_indicator_icon"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginEnd="8dp"
+                android:contentDescription="@string/listening_indicator_description"
+                android:src="@drawable/ic_mic"
+                android:tint="@color/listening_idle" />
+
+            <TextView
+                android:id="@+id/status_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/status_ready"
+                android:textSize="14sp"
+                android:textColor="@color/secondary_color" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/action_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/language_toggle_button"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="@string/language_toggle_auto"
+                android:textSize="12sp"
+                app:cornerRadius="24dp"
+                style="@style/Widget.Material3.Button.OutlinedButton" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/export_button"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="@string/export_conversation"
+                android:textSize="12sp"
+                app:cornerRadius="24dp"
+                style="@style/Widget.Material3.Button.OutlinedButton" />
+        </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/toggle_listening_button"
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:text="Start Listening"
+            android:text="@string/start_listening"
             android:textSize="16sp"
             android:textStyle="bold"
             app:icon="@drawable/ic_mic"
@@ -101,7 +154,7 @@
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:layout_marginTop="8dp"
-            android:text="Clear Conversation"
+            android:text="@string/clear_conversation"
             android:textSize="14sp"
             app:icon="@drawable/ic_clear"
             app:iconGravity="textStart"
