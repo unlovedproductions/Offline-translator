@@ -28,6 +28,7 @@ import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
 import org.vosk.LibVosk
 import org.vosk.LogLevel
+import org.vosk.Model
 import org.vosk.Recognizer
 import org.vosk.android.SpeechService
 import org.vosk.android.StorageService
@@ -51,7 +52,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var conversationAdapter: ConversationAdapter
     private val conversationMessages = mutableListOf<ConversationMessage>()
 
-    private var voskModel: org.vosk.Model? = null
+    private var englishVoskModel: Model? = null
+    private var spanishVoskModel: Model? = null
     private var speechService: SpeechService? = null
     private var tts: TextToSpeech? = null
     private lateinit var languageIdentifier: LanguageIdentifier
@@ -66,6 +68,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var currentListeningLanguage: String = "en"
     private var isListening: Boolean = false
     private var pendingModelDownloads: Int = 0
+    private var pendingSpeechModelLoads: Int = 0
 
     private val silenceHandler = Handler(Looper.getMainLooper())
     private val silenceTimeoutRunnable = Runnable {
@@ -112,7 +115,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), RECORD_AUDIO_PERMISSION_CODE)
         } else {
-            initVoskModel()
+            initVoskModels()
         }
     }
 
@@ -195,7 +198,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun updateStatusIfReady() {
-        if (pendingModelDownloads == 0 && voskModel != null && !isListening) {
+        if (pendingModelDownloads == 0 && pendingSpeechModelLoads == 0 && areSpeechModelsReady() && !isListening) {
             statusTextView.text = getString(R.string.status_ready)
         }
     }
@@ -216,17 +219,36 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "")
     }
 
-    private fun initVoskModel() {
+    private fun initVoskModels() {
         statusTextView.text = getString(R.string.status_loading)
-        StorageService.unpack(this, "model-en-us", "model",
+        pendingSpeechModelLoads = 0
+        unpackSpeechModel(ENGLISH_MODEL_ASSET_PATH, ENGLISH_MODEL_STORAGE_DIR, true)
+        unpackSpeechModel(SPANISH_MODEL_ASSET_PATH, SPANISH_MODEL_STORAGE_DIR, false)
+    }
+
+    private fun unpackSpeechModel(assetPath: String, destinationDir: String, isEnglish: Boolean) {
+        pendingSpeechModelLoads += 1
+        StorageService.unpack(this, assetPath, destinationDir,
             { unpackedModel ->
-                voskModel = unpackedModel
+                if (isEnglish) {
+                    englishVoskModel = unpackedModel
+                } else {
+                    spanishVoskModel = unpackedModel
+                }
+                pendingSpeechModelLoads -= 1
                 updateListeningUi()
                 updateStatusIfReady()
             },
             { exception ->
-                setErrorState("Failed to unpack the Vosk model: ${exception.message}")
+                pendingSpeechModelLoads -= 1
+                val languageLabel = if (isEnglish) getString(R.string.language_label_english) else getString(R.string.language_label_spanish)
+                Log.e(TAG, "Failed to unpack $languageLabel model", exception)
+                setErrorState(getString(R.string.status_error_speech_model, languageLabel))
             })
+    }
+
+    private fun areSpeechModelsReady(): Boolean {
+        return englishVoskModel != null && spanishVoskModel != null
     }
 
     private fun toggleListening() {
@@ -238,9 +260,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun startListening() {
+        val model = if (currentListeningLanguage == "es") spanishVoskModel else englishVoskModel
+        if (model == null) {
+            val languageLabel = if (currentListeningLanguage == "es") getString(R.string.language_label_spanish) else getString(R.string.language_label_english)
+            setErrorState(getString(R.string.status_error_speech_model, languageLabel))
+            return
+        }
         try {
-            val rec = Recognizer(voskModel, 16000.0f)
+            val rec = Recognizer(model, 16000.0f)
             speechService = SpeechService(rec, 16000.0f) { hypothesis ->
+                resetSilenceTimeout()
                 val recognizedText = hypothesis.result.replace("\n", "").replace("\r", "").trim()
                 if (recognizedText.isNotEmpty()) {
                     runOnUiThread {
@@ -402,7 +431,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun updateListeningUi() {
-        toggleListeningButton.isEnabled = voskModel != null
+        toggleListeningButton.isEnabled = areSpeechModelsReady()
         if (isListening) {
             toggleListeningButton.text = getString(R.string.stop_listening)
             toggleListeningButton.setIconResource(R.drawable.ic_clear)
@@ -486,7 +515,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == RECORD_AUDIO_PERMISSION_CODE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                initVoskModel()
+                initVoskModels()
             } else {
                 setErrorState(getString(R.string.permission_denied))
             }
@@ -498,7 +527,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         silenceHandler.removeCallbacks(silenceTimeoutRunnable)
         speechService?.cancel()
         speechService?.shutdown()
-        voskModel?.close()
+        englishVoskModel?.close()
+        spanishVoskModel?.close()
         tts?.stop()
         tts?.shutdown()
         englishSpanishTranslator?.close()
@@ -556,6 +586,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         private const val TAG = "OfflineTranslatorApp"
         private const val SILENCE_TIMEOUT_MS = 1500L
         private const val RESTART_DELAY_MS = 3000L
+        private const val ENGLISH_MODEL_ASSET_PATH = "model-en"
+        private const val SPANISH_MODEL_ASSET_PATH = "model-es"
+        private const val ENGLISH_MODEL_STORAGE_DIR = "model-en"
+        private const val SPANISH_MODEL_STORAGE_DIR = "model-es"
     }
 }
 

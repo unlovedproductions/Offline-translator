@@ -12,9 +12,10 @@
     <string name="status_processing">Processing...</string>
     <string name="status_translating">Translating...</string>
     <string name="status_speaking">Speaking translation... Please wait</string>
-    <string name="status_loading">Loading speech recognition model...</string>
+    <string name="status_loading">Loading speech recognition models...</string>
     <string name="status_downloading">Downloading translation models...</string>
     <string name="status_error_models">Error downloading models</string>
+    <string name="status_error_speech_model">Missing %1$s speech model in assets.</string>
     <string name="status_error_occurred">Error occurred</string>
     <string name="status_translation_error">Translation error</string>
     <string name="status_language_error">Language detection error</string>
@@ -28,6 +29,8 @@
     <string name="language_toggle_en_es">Language: English ↔ Spanish</string>
     <string name="language_toggle_en_fr">Language: English ↔ French</string>
     <string name="language_toggle_en_de">Language: English ↔ German</string>
+    <string name="language_label_english">English</string>
+    <string name="language_label_spanish">Spanish</string>
     <string name="message_you">You: %1$s</string>
     <string name="message_translation">Translation: %1$s</string>
     <string name="message_unsupported_language">Unsupported language: %1$s</string>

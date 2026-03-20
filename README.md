@@ -54,7 +54,12 @@ cd OfflineTranslator
 ### 3. Sync Project
 Android Studio will automatically sync the project and download dependencies.
 
-### 4. Build and Run
+### 4. Speech Model Setup
+1. The English Vosk model is already included at `app/src/main/assets/model-en/`.
+2. Download a Spanish Vosk model (e.g., `vosk-model-small-es-0.42`).
+3. Place the extracted folder at `app/src/main/assets/model-es/`.
+
+### 5. Build and Run
 1. Connect an Android device or start an emulator
 2. Click "Run" or press Shift+F10
 3. The app will install and launch on your device
@@ -83,7 +88,7 @@ Android Studio will automatically sync the project and download dependencies.
 ## Technical Details
 
 ### Speech Recognition
-- Uses Vosk English model (vosk-model-en-us-0.22)
+- Uses Vosk English model (assets/model-en) and Spanish model (assets/model-es) for speech recognition
 - Supports continuous speech recognition
 - Processes audio at 16kHz sample rate
 
@@ -117,7 +122,7 @@ OfflineTranslator/
 │   │   │   │       ├── ic_mic.xml
 │   │   │   │       └── ic_clear.xml
 │   │   │   ├── assets/
-│   │   │   │   └── model/ (Vosk model files)
+│   │   │   │   └── model-en/, model-es/ (Vosk model files)
 │   │   │   └── AndroidManifest.xml
 │   │   └── build.gradle.kts
 │   └── build.gradle.kts
@@ -138,9 +143,10 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    implementation("org.vosk:vosk-android:0.3.45")
-    implementation("com.google.mlkit:language-id:17.0.4")
-    implementation("com.google.mlkit:translate:17.0.2")
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
+    implementation("com.alphacephei:vosk-android:0.3.75")
+    implementation("com.google.mlkit:language-id:17.0.6")
+    implementation("com.google.mlkit:translate:17.0.3")
 }
 ```
 
