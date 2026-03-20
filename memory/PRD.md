@@ -13,6 +13,7 @@
 - Export implemented with internal file save + share intent (text/plain)
 - Silence timeout enforced with Handler/Looper
 - Dual Vosk speech models (model-en/model-es) loaded from assets for English/Spanish recognition
+- Start language dropdown (English/Spanish/French/German depending on mode) affecting listening start
 
 ## What’s Implemented
 - RecyclerView-based conversation history with empty-state handling
@@ -24,6 +25,7 @@
 - Silence timeout (1.5s) for pause detection
 - All user-facing strings moved to strings.xml
 - Spanish Vosk model added in assets/model-es with dual-model loading for English/Spanish listening
+- Start language dropdown to choose initial listening language per mode
 
 ## Prioritized Backlog
 - P0: Run real-device/emulator QA for Vosk + ML Kit flow; verify model downloads and TTS behavior

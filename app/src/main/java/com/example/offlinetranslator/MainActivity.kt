@@ -171,7 +171,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 if (isUpdatingStartLanguage) {
                     return
                 }
-                val selected = startLanguageOptions.getOrNull(position) ?: return
+                if (position < 0 || position >= startLanguageOptions.size) {
+                    return
+                }
+                val selected = startLanguageOptions[position]
                 if (currentListeningLanguage != selected.code) {
                     currentListeningLanguage = selected.code
                     if (!isListening) {
