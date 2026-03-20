@@ -65,14 +65,16 @@ C:\AndroidProjects\OfflineTranslator  (Windows)
 4. Click "OK"
 5. Wait for the project to sync (this may take several minutes)
 
-### 3. Download Vosk Models (English + Spanish)
-The Vosk speech recognition models need to be downloaded and placed in the correct locations:
+### 3. Verify Vosk Models (English + Spanish)
+The English and Spanish Vosk models are included in the repository at:
+- `app/src/main/assets/model-en/`
+- `app/src/main/assets/model-es/`
 
+If you want to replace them with newer models:
 1. Download the English model from: https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
 2. Download the Spanish model from: https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip
 3. Extract both ZIP files
-4. Copy the English model folder to: `app/src/main/assets/model-en/`
-5. Copy the Spanish model folder to: `app/src/main/assets/model-es/`
+4. Replace the contents of `model-en/` and `model-es/` accordingly
 
 ### 4. Sync Project Dependencies
 1. In Android Studio, click "Sync Now" if prompted

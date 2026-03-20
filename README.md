@@ -55,9 +55,8 @@ cd OfflineTranslator
 Android Studio will automatically sync the project and download dependencies.
 
 ### 4. Speech Model Setup
-1. The English Vosk model is already included at `app/src/main/assets/model-en/`.
-2. Download a Spanish Vosk model (e.g., `vosk-model-small-es-0.42`).
-3. Place the extracted folder at `app/src/main/assets/model-es/`.
+1. English and Spanish Vosk models are already included at `app/src/main/assets/model-en/` and `app/src/main/assets/model-es/`.
+2. If you want to replace them, download newer models and swap those folders.
 
 ### 5. Build and Run
 1. Connect an Android device or start an emulator
