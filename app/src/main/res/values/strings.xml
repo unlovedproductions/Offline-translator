@@ -25,6 +25,11 @@
     <string name="stop_listening">Stop Listening</string>
     <string name="clear_conversation">Clear Conversation</string>
     <string name="export_conversation">Export Conversation</string>
+    <string name="start_language_label">Start language</string>
+    <string name="language_option_english">English</string>
+    <string name="language_option_spanish">Spanish</string>
+    <string name="language_option_french">French</string>
+    <string name="language_option_german">German</string>
     <string name="language_toggle_auto">Language: Auto</string>
     <string name="language_toggle_en_es">Language: English ↔ Spanish</string>
     <string name="language_toggle_en_fr">Language: English ↔ French</string>

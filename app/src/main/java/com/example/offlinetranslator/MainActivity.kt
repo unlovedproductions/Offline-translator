@@ -11,7 +11,10 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.ImageView
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -49,8 +52,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var clearButton: MaterialButton
     private lateinit var languageToggleButton: MaterialButton
     private lateinit var exportButton: MaterialButton
+    private lateinit var startLanguageSpinner: Spinner
     private lateinit var conversationAdapter: ConversationAdapter
     private val conversationMessages = mutableListOf<ConversationMessage>()
+    private var startLanguageOptions: List<LanguageOption> = emptyList()
+    private var isUpdatingStartLanguage: Boolean = false
 
     private var englishVoskModel: Model? = null
     private var spanishVoskModel: Model? = null
@@ -91,6 +97,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         clearButton = findViewById(R.id.clear_button)
         languageToggleButton = findViewById(R.id.language_toggle_button)
         exportButton = findViewById(R.id.export_button)
+        startLanguageSpinner = findViewById(R.id.start_language_spinner)
 
         conversationAdapter = ConversationAdapter(conversationMessages)
         conversationRecyclerView.layoutManager = LinearLayoutManager(this)
@@ -100,6 +107,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         clearButton.setOnClickListener { clearConversation() }
         languageToggleButton.setOnClickListener { cycleLanguageMode() }
         exportButton.setOnClickListener { exportConversation() }
+        setupStartLanguageSpinner()
 
         LibVosk.setLogLevel(LogLevel.INFO)
 
@@ -157,6 +165,67 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         germanEnglishTranslator = Translation.getClient(germanEnglishOptions)
     }
 
+    private fun setupStartLanguageSpinner() {
+        startLanguageSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                if (isUpdatingStartLanguage) {
+                    return
+                }
+                val selected = startLanguageOptions.getOrNull(position) ?: return
+                if (currentListeningLanguage != selected.code) {
+                    currentListeningLanguage = selected.code
+                    if (!isListening) {
+                        statusTextView.text = getString(R.string.status_ready)
+                    }
+                }
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>) {
+                // No-op
+            }
+        }
+    }
+
+    private fun updateStartLanguageOptions() {
+        val options = when (currentMode) {
+            ConversationMode.AUTO -> listOf(
+                LanguageOption("en", getString(R.string.language_option_english)),
+                LanguageOption("es", getString(R.string.language_option_spanish))
+            )
+            ConversationMode.ENGLISH_SPANISH -> listOf(
+                LanguageOption("en", getString(R.string.language_option_english)),
+                LanguageOption("es", getString(R.string.language_option_spanish))
+            )
+            ConversationMode.ENGLISH_FRENCH -> listOf(
+                LanguageOption("en", getString(R.string.language_option_english)),
+                LanguageOption("fr", getString(R.string.language_option_french))
+            )
+            ConversationMode.ENGLISH_GERMAN -> listOf(
+                LanguageOption("en", getString(R.string.language_option_english)),
+                LanguageOption("de", getString(R.string.language_option_german))
+            )
+        }
+        startLanguageOptions = options
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, options.map { it.label })
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        startLanguageSpinner.adapter = adapter
+
+        val selectedIndex = options.indexOfFirst { it.code == currentListeningLanguage }.takeIf { it >= 0 } ?: 0
+        isUpdatingStartLanguage = true
+        startLanguageSpinner.setSelection(selectedIndex, false)
+        currentListeningLanguage = options[selectedIndex].code
+        isUpdatingStartLanguage = false
+    }
+
+    private fun syncStartLanguageSelection() {
+        val selectedIndex = startLanguageOptions.indexOfFirst { it.code == currentListeningLanguage }
+        if (selectedIndex >= 0) {
+            isUpdatingStartLanguage = true
+            startLanguageSpinner.setSelection(selectedIndex, false)
+            isUpdatingStartLanguage = false
+        }
+    }
+
     private fun clearConversation() {
         if (isListening) {
             stopListening()
@@ -165,6 +234,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         conversationAdapter.notifyDataSetChanged()
         updateEmptyState()
         currentListeningLanguage = "en"
+        syncStartLanguageSelection()
         statusTextView.text = getString(R.string.status_ready)
     }
 
@@ -354,6 +424,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     addTranslationMessage(translatedText, targetLanguage)
                     speakOut(translatedText, localeForLanguage(targetLanguage))
                     currentListeningLanguage = targetLanguage
+                    syncStartLanguageSelection()
                     statusTextView.text = getString(R.string.status_speaking)
                     toggleListeningButton.postDelayed({
                         if (!isListening) {
@@ -428,6 +499,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
         subtitleTextView.text = getString(subtitleRes)
         languageToggleButton.text = getString(toggleRes)
+        updateStartLanguageOptions()
     }
 
     private fun updateListeningUi() {
@@ -441,6 +513,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
         val indicatorColor = if (isListening) R.color.listening_active else R.color.listening_idle
         listeningIndicatorIcon.setColorFilter(ContextCompat.getColor(this, indicatorColor))
+        startLanguageSpinner.isEnabled = !isListening && areSpeechModelsReady()
     }
 
     private fun addUserMessage(text: String, languageCode: String) {
@@ -538,6 +611,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         englishGermanTranslator?.close()
         germanEnglishTranslator?.close()
     }
+
+    private data class LanguageOption(val code: String, val label: String)
 
     private data class ConversationMessage(val text: String, val type: MessageType)
 
