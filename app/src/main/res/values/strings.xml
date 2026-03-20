@@ -1,3 +1,4 @@
+
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Offline Translator</string>
@@ -7,6 +8,8 @@
     <string name="subtitle_en_fr">English ↔ French Conversation</string>
     <string name="subtitle_en_de">English ↔ German Conversation</string>
     <string name="empty_state">Press the microphone button to start a conversation</string>
+    <string name="search_hint">Search transcript</string>
+    <string name="search_empty_state">No matching messages</string>
     <string name="status_ready">Ready to listen</string>
     <string name="status_listening">Listening... Speak now</string>
     <string name="status_processing">Processing...</string>
@@ -25,18 +28,27 @@
     <string name="stop_listening">Stop Listening</string>
     <string name="clear_conversation">Clear Conversation</string>
     <string name="export_conversation">Export Conversation</string>
+    <string name="export_history_title">Export History</string>
+    <string name="history_button_label">History</string>
+    <string name="export_history_empty">No export history yet</string>
+    <string name="close">Close</string>
+    <string name="language_toggle_auto">Language: Auto</string>
+    <string name="language_toggle_en_es">Language: English ↔ Spanish</string>
+    <string name="language_toggle_en_fr">Language: English ↔ French</string>
+    <string name="language_toggle_en_de">Language: English ↔ German</string>
     <string name="start_language_label">Start language</string>
     <string name="language_option_english">English</string>
     <string name="language_option_spanish">Spanish</string>
     <string name="language_option_french">French</string>
     <string name="language_option_german">German</string>
-    <string name="language_toggle_auto">Language: Auto</string>
-    <string name="language_toggle_en_es">Language: English ↔ Spanish</string>
-    <string name="language_toggle_en_fr">Language: English ↔ French</string>
-    <string name="language_toggle_en_de">Language: English ↔ German</string>
     <string name="language_label_english">English</string>
     <string name="language_label_spanish">Spanish</string>
-    <string name="message_you">You: %1$s</string>
+    <string name="language_label_french">French</string>
+    <string name="language_label_german">German</string>
+    <string name="speaker_label">Speaker</string>
+    <string name="speaker_a">Speaker A</string>
+    <string name="speaker_b">Speaker B</string>
+    <string name="message_speaker">%1$s: %2$s</string>
     <string name="message_translation">Translation: %1$s</string>
     <string name="message_unsupported_language">Unsupported language: %1$s</string>
     <string name="error_prefix">Error: %1$s</string>
@@ -44,4 +56,22 @@
     <string name="export_empty">No conversation to export</string>
     <string name="export_ready">Conversation saved and ready to share</string>
     <string name="listening_indicator_description">Listening status</string>
+    <string name="silence_toggle_label">Auto stop on silence</string>
+    <string name="silence_timeout_default">1.5s</string>
+    <string name="silence_timeout_value">%1$.1f s</string>
+    <string name="swap_language">Swap</string>
+    <string name="model_size_loading">Model sizes: calculating...</string>
+    <string name="model_size_prefix">Model sizes:</string>
+    <string name="model_size_unknown">Model sizes: unavailable</string>
+    <string name="voice_section_label">Voice preferences</string>
+    <string name="voice_label_english">English voice</string>
+    <string name="voice_label_spanish">Spanish voice</string>
+    <string name="voice_label_french">French voice</string>
+    <string name="voice_label_german">German voice</string>
+    <string name="voice_default">Default voice</string>
+    <string name="onboarding_title">Welcome to Offline Translator</string>
+    <string name="onboarding_message">1) Tap Start Listening to begin.
+2) Use Language Mode and Start language to pick direction.
+3) Export or review history anytime.</string>
+    <string name="onboarding_cta">Got it</string>
 </resources>

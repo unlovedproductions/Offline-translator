@@ -55,7 +55,11 @@ cd OfflineTranslator
 Android Studio will automatically sync the project and download dependencies.
 
 ### 4. Speech Model Setup
-1. English and Spanish Vosk models are already included at `app/src/main/assets/model-en/` and `app/src/main/assets/model-es/`.
+1. English, Spanish, French, and German Vosk models are already included at:
+   - `app/src/main/assets/model-en/`
+   - `app/src/main/assets/model-es/`
+   - `app/src/main/assets/model-fr/`
+   - `app/src/main/assets/model-de/`
 2. If you want to replace them, download newer models and swap those folders.
 
 ### 5. Build and Run
@@ -87,7 +91,7 @@ Android Studio will automatically sync the project and download dependencies.
 ## Technical Details
 
 ### Speech Recognition
-- Uses Vosk English model (assets/model-en) and Spanish model (assets/model-es) for speech recognition
+- Uses Vosk speech models for English, Spanish, French, and German (assets/model-en, model-es, model-fr, model-de)
 - Supports continuous speech recognition
 - Processes audio at 16kHz sample rate
 
@@ -121,7 +125,7 @@ OfflineTranslator/
 │   │   │   │       ├── ic_mic.xml
 │   │   │   │       └── ic_clear.xml
 │   │   │   ├── assets/
-│   │   │   │   └── model-en/, model-es/ (Vosk model files)
+│   │   │   │   └── model-en/, model-es/, model-fr/, model-de/ (Vosk model files)
 │   │   │   └── AndroidManifest.xml
 │   │   └── build.gradle.kts
 │   └── build.gradle.kts

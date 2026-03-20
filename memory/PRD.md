@@ -7,32 +7,30 @@
 
 ## Architecture Decisions
 - Android Kotlin single-activity app (MainActivity) remains the orchestrator
-- Conversation UI migrated from a single TextView to RecyclerView with an empty state
-- Language modes implemented via a single toggle (Auto → EN/ES → EN/FR → EN/DE)
+- Conversation UI uses RecyclerView with custom message items (bubbles + timestamps) and search filtering
+- Language modes: Auto (EN↔ES), EN↔ES, EN↔FR, EN↔DE with start-language dropdown and quick swap
 - Translation expanded with ML Kit translators for French and German pairs
-- Export implemented with internal file save + share intent (text/plain)
-- Silence timeout enforced with Handler/Looper
-- Dual Vosk speech models (model-en/model-es) loaded from assets for English/Spanish recognition
-- Start language dropdown (English/Spanish/French/German depending on mode) affecting listening start
+- Speech recognition uses Vosk models for EN/ES/FR/DE stored in assets and unpacked at runtime
+- Voice preferences per language stored in SharedPreferences
+- Export history and onboarding stored locally via SharedPreferences
 
 ## What’s Implemented
-- RecyclerView-based conversation history with empty-state handling
-- UI state consistency fixes (start/stop button enabled state, status updates)
-- Listening indicator icon color changes for active/idle state
-- Language mode toggle and subtitle updates
-- Additional language support (English↔French, English↔German)
-- Conversation export (save + share)
-- Silence timeout (1.5s) for pause detection
+- RecyclerView conversation history with search filtering, empty state, and styled bubbles with timestamps
+- UI state consistency fixes, mic activity meter, and model download progress indicator
+- Language mode toggle, start-language dropdown, quick swap, and speaker profiles
+- Additional language support (English↔French, English↔German) plus Vosk speech models for EN/ES/FR/DE
+- Conversation export (save + share) with export history
+- Silence timeout controls (toggle + adjustable timeout)
+- Per-language TTS voice selection
+- One-time onboarding tips dialog
 - All user-facing strings moved to strings.xml
-- Spanish Vosk model added in assets/model-es with dual-model loading for English/Spanish listening
-- Start language dropdown to choose initial listening language per mode
 
 ## Prioritized Backlog
-- P0: Run real-device/emulator QA for Vosk + ML Kit flow; verify model downloads and TTS behavior
-- P1: Improve message styling (bubbles, timestamps), add persistent transcript list
-- P2: Add more language pairs and manual target language selection
+- P0: Run real-device/emulator QA for Vosk + ML Kit flow; validate FR/DE speech models and voice selection
+- P1: Add real mic-level metering from audio amplitude and advanced noise suppression
+- P2: Add more language pairs and model size optimization (on-demand downloads)
 
 ## Next Tasks
-- Validate on Android device/emulator
-- Add UI polish to conversation list and export confirmations
-- Consider offline pre-bundled language models for faster first run
+- Validate on Android device/emulator for EN/ES/FR/DE speech recognition and voice selection
+- QA export history and search filtering UX
+- Consider model download compression or on-demand download flow
