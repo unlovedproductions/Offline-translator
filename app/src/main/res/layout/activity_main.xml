@@ -131,16 +131,34 @@
                 android:textColor="@color/secondary_color" />
         </LinearLayout>
 
-        <ProgressBar
-            android:id="@+id/mic_level_meter"
-            style="?android:attr/progressBarStyleHorizontal"
+        <LinearLayout
+            android:id="@+id/mic_level_row"
             android:layout_width="match_parent"
-            android:layout_height="6dp"
+            android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
-            android:max="100"
-            android:progress="0"
-            android:indeterminate="false"
-            android:visibility="gone" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ProgressBar
+                android:id="@+id/mic_level_meter"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="0dp"
+                android:layout_height="6dp"
+                android:layout_weight="1"
+                android:max="100"
+                android:progress="0"
+                android:secondaryProgress="0"
+                android:indeterminate="false" />
+
+            <TextView
+                android:id="@+id/mic_level_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="@string/db_placeholder"
+                android:textColor="@color/secondary_color"
+                android:textSize="12sp" />
+        </LinearLayout>
 
         <ProgressBar
             android:id="@+id/model_download_progress"

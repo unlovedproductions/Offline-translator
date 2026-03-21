@@ -55,6 +55,8 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.log10
+import kotlin.math.max
 import kotlin.math.sqrt
 
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
@@ -66,6 +68,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var statusTextView: TextView
     private lateinit var listeningIndicatorIcon: ImageView
     private lateinit var micLevelMeter: ProgressBar
+    private lateinit var micLevelValueText: TextView
     private lateinit var modelDownloadProgress: ProgressBar
     private lateinit var modelSizeTextView: TextView
     private lateinit var toggleListeningButton: MaterialButton
@@ -125,6 +128,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var silenceTimeoutMs: Long = DEFAULT_SILENCE_TIMEOUT_MS
     private var isSilenceTimeoutEnabled: Boolean = true
     private var isNoiseReductionEnabled: Boolean = false
+    private var smoothedMicLevel: Double = 0.0
+    private var peakMicLevel: Double = 0.0
+    private var lastPeakTimestamp: Long = 0L
 
     private val silenceHandler = Handler(Looper.getMainLooper())
     private val silenceTimeoutRunnable = Runnable {
@@ -148,6 +154,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         listeningIndicatorIcon = findViewById(R.id.listening_indicator_icon)
         micLevelMeter = findViewById(R.id.mic_level_meter)
         micLevelMeter.max = 100
+        micLevelValueText = findViewById(R.id.mic_level_value)
         modelDownloadProgress = findViewById(R.id.model_download_progress)
         modelSizeTextView = findViewById(R.id.model_size_text)
         toggleListeningButton = findViewById(R.id.toggle_listening_button)
@@ -853,6 +860,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         recognizer = null
         releaseAudioEffects()
         micLevelMeter.progress = 0
+        micLevelMeter.secondaryProgress = 0
+        smoothedMicLevel = 0.0
+        peakMicLevel = 0.0
+        lastPeakTimestamp = 0L
+        micLevelValueText.text = getString(R.string.db_placeholder)
     }
 
     private fun handleRecognitionText(recognizedText: String) {
@@ -877,12 +889,31 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun updateMicLevel(buffer: ByteArray, length: Int) {
         val rms = calculateRms(buffer, length)
-        val normalized = (rms / MAX_PCM_AMPLITUDE * 100.0).coerceIn(0.0, 100.0)
-        if (normalized > MIC_LEVEL_ACTIVITY_THRESHOLD) {
+        val rawLevel = (rms / MAX_PCM_AMPLITUDE * 100.0).coerceIn(0.0, 100.0)
+        smoothedMicLevel = if (smoothedMicLevel == 0.0) {
+            rawLevel
+        } else {
+            METER_SMOOTHING_ALPHA * rawLevel + (1 - METER_SMOOTHING_ALPHA) * smoothedMicLevel
+        }
+        val now = System.currentTimeMillis()
+        if (rawLevel > MIC_LEVEL_ACTIVITY_THRESHOLD) {
             resetSilenceTimeout()
         }
+        if (rawLevel >= peakMicLevel) {
+            peakMicLevel = rawLevel
+            lastPeakTimestamp = now
+        } else if (now - lastPeakTimestamp > PEAK_HOLD_MS) {
+            peakMicLevel = max(rawLevel, peakMicLevel * PEAK_DECAY_RATE)
+        }
+        val dbValue = if (rms <= 0.0) {
+            MIN_DB
+        } else {
+            (20 * log10(rms / MAX_PCM_AMPLITUDE)).coerceIn(MIN_DB, 0.0)
+        }
         runOnUiThread {
-            micLevelMeter.progress = normalized.toInt()
+            micLevelMeter.progress = smoothedMicLevel.toInt()
+            micLevelMeter.secondaryProgress = peakMicLevel.toInt()
+            micLevelValueText.text = getString(R.string.db_format, dbValue)
         }
     }
 
@@ -1089,9 +1120,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         voiceSpanishSpinner.isEnabled = voiceEnabled
         voiceFrenchSpinner.isEnabled = voiceEnabled
         voiceGermanSpinner.isEnabled = voiceEnabled
-        micLevelMeter.visibility = if (isListening) View.VISIBLE else View.GONE
+        micLevelMeter.visibility = View.VISIBLE
+        micLevelValueText.visibility = View.VISIBLE
         if (!isListening) {
             micLevelMeter.progress = 0
+            micLevelMeter.secondaryProgress = 0
+            micLevelValueText.text = getString(R.string.db_placeholder)
         }
         updateSwapLanguageUi()
     }
@@ -1297,6 +1331,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         private const val MAX_EXPORT_HISTORY = 10
         private const val MAX_PCM_AMPLITUDE = 32768.0
         private const val MIC_LEVEL_ACTIVITY_THRESHOLD = 6.0
+        private const val METER_SMOOTHING_ALPHA = 0.2
+        private const val PEAK_HOLD_MS = 2000L
+        private const val PEAK_DECAY_RATE = 0.9
+        private const val MIN_DB = -60.0
         private const val VOICE_DEFAULT = "default"
         private const val SPEAKER_A = "A"
         private const val SPEAKER_B = "B"
