@@ -59,6 +59,7 @@
     <string name="silence_toggle_label">Auto stop on silence</string>
     <string name="silence_timeout_default">1.5s</string>
     <string name="silence_timeout_value">%1$.1f s</string>
+    <string name="noise_reduction_label">Noise reduction</string>
     <string name="swap_language">Swap</string>
     <string name="model_size_loading">Model sizes: calculating...</string>
     <string name="model_size_prefix">Model sizes:</string>

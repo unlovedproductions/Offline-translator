@@ -4,6 +4,12 @@ import android.Manifest
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.AutomaticGainControl
+import android.media.audiofx.NoiseSuppressor
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -42,13 +48,14 @@ import org.vosk.LibVosk
 import org.vosk.LogLevel
 import org.vosk.Model
 import org.vosk.Recognizer
-import org.vosk.android.SpeechService
 import org.vosk.android.StorageService
+import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.sqrt
 
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
@@ -72,6 +79,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var silenceToggleSwitch: SwitchMaterial
     private lateinit var silenceTimeoutSeekBar: SeekBar
     private lateinit var silenceTimeoutValueText: TextView
+    private lateinit var noiseReductionSwitch: SwitchMaterial
     private lateinit var voiceEnglishSpinner: Spinner
     private lateinit var voiceSpanishSpinner: Spinner
     private lateinit var voiceFrenchSpinner: Spinner
@@ -94,7 +102,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var spanishVoskModel: Model? = null
     private var frenchVoskModel: Model? = null
     private var germanVoskModel: Model? = null
-    private var speechService: SpeechService? = null
+    private var audioRecord: AudioRecord? = null
+    private var recordingThread: Thread? = null
+    private var recognizer: Recognizer? = null
+    private var noiseSuppressor: NoiseSuppressor? = null
+    private var echoCanceler: AcousticEchoCanceler? = null
+    private var automaticGainControl: AutomaticGainControl? = null
     private var tts: TextToSpeech? = null
     private lateinit var languageIdentifier: LanguageIdentifier
     private var englishSpanishTranslator: Translator? = null
@@ -111,6 +124,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var pendingSpeechModelLoads: Int = 0
     private var silenceTimeoutMs: Long = DEFAULT_SILENCE_TIMEOUT_MS
     private var isSilenceTimeoutEnabled: Boolean = true
+    private var isNoiseReductionEnabled: Boolean = false
 
     private val silenceHandler = Handler(Looper.getMainLooper())
     private val silenceTimeoutRunnable = Runnable {
@@ -133,6 +147,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         statusTextView = findViewById(R.id.status_text)
         listeningIndicatorIcon = findViewById(R.id.listening_indicator_icon)
         micLevelMeter = findViewById(R.id.mic_level_meter)
+        micLevelMeter.max = 100
         modelDownloadProgress = findViewById(R.id.model_download_progress)
         modelSizeTextView = findViewById(R.id.model_size_text)
         toggleListeningButton = findViewById(R.id.toggle_listening_button)
@@ -146,6 +161,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         silenceToggleSwitch = findViewById(R.id.silence_toggle_switch)
         silenceTimeoutSeekBar = findViewById(R.id.silence_timeout_seekbar)
         silenceTimeoutValueText = findViewById(R.id.silence_timeout_value)
+        noiseReductionSwitch = findViewById(R.id.noise_reduction_switch)
         voiceEnglishSpinner = findViewById(R.id.voice_english_spinner)
         voiceSpanishSpinner = findViewById(R.id.voice_spanish_spinner)
         voiceFrenchSpinner = findViewById(R.id.voice_french_spinner)
@@ -165,6 +181,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         setupSpeakerSpinner()
         setupSearchInput()
         setupSilenceControls()
+        setupNoiseReductionToggle()
 
         LibVosk.setLogLevel(LogLevel.INFO)
 
@@ -371,6 +388,25 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 // No-op
             }
         })
+    }
+
+    private fun setupNoiseReductionToggle() {
+        val effectsAvailable = NoiseSuppressor.isAvailable() || AcousticEchoCanceler.isAvailable() || AutomaticGainControl.isAvailable()
+        if (!effectsAvailable) {
+            noiseReductionSwitch.isEnabled = false
+            noiseReductionSwitch.isChecked = false
+            return
+        }
+        isNoiseReductionEnabled = preferences.getBoolean(PREF_NOISE_REDUCTION, false)
+        noiseReductionSwitch.isChecked = isNoiseReductionEnabled
+        noiseReductionSwitch.setOnCheckedChangeListener { _, isChecked ->
+            isNoiseReductionEnabled = isChecked
+            preferences.edit().putBoolean(PREF_NOISE_REDUCTION, isChecked).apply()
+            if (isListening) {
+                stopListening()
+                startListening()
+            }
+        }
     }
 
     private fun swapCurrentLanguage() {
@@ -721,42 +757,181 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             return
         }
         try {
-            val rec = Recognizer(model, 16000.0f)
-            speechService = SpeechService(rec, 16000.0f) { hypothesis ->
-                resetSilenceTimeout()
-                val recognizedText = hypothesis.result.replace("\n", "").replace("\r", "").trim()
-                if (recognizedText.isNotEmpty()) {
-                    runOnUiThread {
-                        stopListening(false)
-                        statusTextView.text = getString(R.string.status_processing)
-                        if (currentMode == ConversationMode.AUTO) {
-                            identifyAndTranslate(recognizedText)
-                        } else {
-                            addUserMessage(recognizedText, currentListeningLanguage)
-                            translateWithOverride(recognizedText, currentListeningLanguage)
-                        }
-                    }
-                }
-            }
             isListening = true
+            startAudioRecognition(model)
             updateListeningUi()
             statusTextView.text = getString(R.string.status_listening)
             resetSilenceTimeout()
-        } catch (e: IOException) {
+        } catch (e: Exception) {
+            isListening = false
             setErrorState(e.message ?: getString(R.string.status_error_occurred))
         }
     }
 
+    private fun startAudioRecognition(model: Model) {
+        stopAudioRecognition()
+        val sampleRate = 16000
+        val bufferSize = AudioRecord.getMinBufferSize(
+            sampleRate,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT
+        )
+        if (bufferSize == AudioRecord.ERROR || bufferSize == AudioRecord.ERROR_BAD_VALUE) {
+            throw IOException("Invalid audio buffer size")
+        }
+        val source = if (isNoiseReductionEnabled) {
+            MediaRecorder.AudioSource.VOICE_RECOGNITION
+        } else {
+            MediaRecorder.AudioSource.MIC
+        }
+        val recorder = AudioRecord(
+            source,
+            sampleRate,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT,
+            bufferSize
+        )
+        if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+            recorder.release()
+            throw IOException("Audio recorder init failed")
+        }
+        audioRecord = recorder
+        setupAudioEffects(recorder)
+        recognizer = Recognizer(model, sampleRate.toFloat())
+        recorder.startRecording()
+        val buffer = ByteArray(bufferSize)
+        recordingThread = Thread {
+            while (isListening && !Thread.currentThread().isInterrupted) {
+                val read = recorder.read(buffer, 0, buffer.size)
+                if (read <= 0) {
+                    continue
+                }
+                updateMicLevel(buffer, read)
+                val hasFinal = recognizer?.acceptWaveForm(buffer, read) ?: false
+                if (hasFinal) {
+                    val resultJson = recognizer?.result ?: ""
+                    val recognizedText = parseResultText(resultJson)
+                    if (recognizedText.isNotBlank()) {
+                        runOnUiThread { handleRecognitionText(recognizedText) }
+                        break
+                    }
+                }
+            }
+        }
+        recordingThread?.start()
+    }
+
     private fun stopListening(updateStatus: Boolean = true) {
-        speechService?.cancel()
-        speechService?.shutdown()
-        speechService = null
         isListening = false
+        stopAudioRecognition()
         silenceHandler.removeCallbacks(silenceTimeoutRunnable)
         updateListeningUi()
         if (updateStatus) {
             statusTextView.text = getString(R.string.status_ready)
         }
+    }
+
+    private fun stopAudioRecognition() {
+        recordingThread?.interrupt()
+        recordingThread = null
+        audioRecord?.let { recorder ->
+            try {
+                if (recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                    recorder.stop()
+                }
+            } catch (e: IllegalStateException) {
+                Log.w(TAG, "AudioRecord stop error", e)
+            }
+            recorder.release()
+        }
+        audioRecord = null
+        try {
+            recognizer?.close()
+        } catch (e: Exception) {
+            Log.w(TAG, "Recognizer close error", e)
+        }
+        recognizer = null
+        releaseAudioEffects()
+        micLevelMeter.progress = 0
+    }
+
+    private fun handleRecognitionText(recognizedText: String) {
+        stopListening(false)
+        statusTextView.text = getString(R.string.status_processing)
+        if (currentMode == ConversationMode.AUTO) {
+            identifyAndTranslate(recognizedText)
+        } else {
+            addUserMessage(recognizedText, currentListeningLanguage)
+            translateWithOverride(recognizedText, currentListeningLanguage)
+        }
+    }
+
+    private fun parseResultText(resultJson: String): String {
+        return try {
+            val json = JSONObject(resultJson)
+            json.optString("text", "").trim()
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    private fun updateMicLevel(buffer: ByteArray, length: Int) {
+        val rms = calculateRms(buffer, length)
+        val normalized = (rms / MAX_PCM_AMPLITUDE * 100.0).coerceIn(0.0, 100.0)
+        if (normalized > MIC_LEVEL_ACTIVITY_THRESHOLD) {
+            resetSilenceTimeout()
+        }
+        runOnUiThread {
+            micLevelMeter.progress = normalized.toInt()
+        }
+    }
+
+    private fun calculateRms(buffer: ByteArray, length: Int): Double {
+        var sum = 0.0
+        val sampleCount = length / 2
+        if (sampleCount == 0) {
+            return 0.0
+        }
+        var i = 0
+        while (i < sampleCount) {
+            val index = i * 2
+            val low = buffer[index].toInt() and 0xFF
+            val high = buffer[index + 1].toInt()
+            val sample = (high shl 8) or low
+            val value = if (sample > 32767) sample - 65536 else sample
+            sum += value.toDouble() * value.toDouble()
+            i += 1
+        }
+        return sqrt(sum / sampleCount)
+    }
+
+    private fun setupAudioEffects(recorder: AudioRecord) {
+        releaseAudioEffects()
+        if (!isNoiseReductionEnabled) {
+            return
+        }
+        val sessionId = recorder.audioSessionId
+        if (NoiseSuppressor.isAvailable()) {
+            noiseSuppressor = NoiseSuppressor.create(sessionId)
+            noiseSuppressor?.enabled = true
+        }
+        if (AcousticEchoCanceler.isAvailable()) {
+            echoCanceler = AcousticEchoCanceler.create(sessionId)
+            echoCanceler?.enabled = true
+        }
+        if (AutomaticGainControl.isAvailable()) {
+            automaticGainControl = AutomaticGainControl.create(sessionId)
+            automaticGainControl?.enabled = true
+        }
+    }
+
+    private fun releaseAudioEffects() {
+        noiseSuppressor?.release()
+        noiseSuppressor = null
+        echoCanceler?.release()
+        echoCanceler = null
+        automaticGainControl?.release()
+        automaticGainControl = null
     }
 
     private fun resetSilenceTimeout() {
@@ -908,12 +1083,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         listeningIndicatorIcon.setColorFilter(ContextCompat.getColor(this, indicatorColor))
         startLanguageSpinner.isEnabled = !isListening && modelsReady
         speakerSpinner.isEnabled = !isListening
+        noiseReductionSwitch.isEnabled = !isListening
         val voiceEnabled = !isListening
         voiceEnglishSpinner.isEnabled = voiceEnabled
         voiceSpanishSpinner.isEnabled = voiceEnabled
         voiceFrenchSpinner.isEnabled = voiceEnabled
         voiceGermanSpinner.isEnabled = voiceEnabled
         micLevelMeter.visibility = if (isListening) View.VISIBLE else View.GONE
+        if (!isListening) {
+            micLevelMeter.progress = 0
+        }
         updateSwapLanguageUi()
     }
 
@@ -1015,8 +1194,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     override fun onDestroy() {
         super.onDestroy()
         silenceHandler.removeCallbacks(silenceTimeoutRunnable)
-        speechService?.cancel()
-        speechService?.shutdown()
+        stopAudioRecognition()
         englishVoskModel?.close()
         spanishVoskModel?.close()
         frenchVoskModel?.close()
@@ -1108,6 +1286,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         private const val PREF_SPEAKER = "pref_speaker"
         private const val PREF_SILENCE_TIMEOUT_MS = "pref_silence_timeout_ms"
         private const val PREF_SILENCE_ENABLED = "pref_silence_enabled"
+        private const val PREF_NOISE_REDUCTION = "pref_noise_reduction"
         private const val PREF_EXPORT_HISTORY = "pref_export_history"
         private const val PREF_ONBOARDING_SHOWN = "pref_onboarding_shown"
         private const val PREF_VOICE_EN = "pref_voice_en"
@@ -1116,6 +1295,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         private const val PREF_VOICE_DE = "pref_voice_de"
         private const val EXPORT_HISTORY_SEPARATOR = "||"
         private const val MAX_EXPORT_HISTORY = 10
+        private const val MAX_PCM_AMPLITUDE = 32768.0
+        private const val MIC_LEVEL_ACTIVITY_THRESHOLD = 6.0
         private const val VOICE_DEFAULT = "default"
         private const val SPEAKER_A = "A"
         private const val SPEAKER_B = "B"
