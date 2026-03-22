@@ -7,31 +7,33 @@
 
 ## Architecture Decisions
 - Android Kotlin single-activity app (MainActivity) remains the orchestrator
-- Conversation UI uses RecyclerView with custom message items (bubbles + timestamps) and search filtering
+- Conversation UI uses RecyclerView with custom message items (bubbles + timestamps + favorites + confidence) and search filtering
 - Language modes: Auto (EN↔ES), EN↔ES, EN↔FR, EN↔DE with start-language dropdown and quick swap
 - Translation expanded with ML Kit translators for French and German pairs
 - Speech recognition uses Vosk models for EN/ES/FR/DE stored in assets and unpacked at runtime
 - Audio capture uses AudioRecord for real-time RMS mic level (smoothed + peak-hold) and optional noise reduction (NoiseSuppressor/AEC/AGC) toggle
+- Export pipeline supports TXT/PDF/CSV via FileProvider share
+- Model Manager dialog provides simple (Vosk) or advanced (Vosk + ML Kit) model controls
 - Voice preferences per language stored in SharedPreferences
 - Export history and onboarding stored locally via SharedPreferences
 
 ## What’s Implemented
-- RecyclerView conversation history with search filtering, empty state, and styled bubbles with timestamps
-- UI state consistency fixes, real-time mic level meter (smoothed + peak-hold with dB readout), noise reduction toggle, and model download progress indicator
+- RecyclerView conversation history with search filtering, favorites, confidence indicators, and styled bubbles with timestamps
+- UI state consistency fixes, smoothed mic level meter with dB readout, noise reduction toggle, push-to-talk mode, and model download progress indicator
 - Language mode toggle, start-language dropdown, quick swap, and speaker profiles
 - Additional language support (English↔French, English↔German) plus Vosk speech models for EN/ES/FR/DE
-- Conversation export (save + share) with export history
-- Silence timeout controls (toggle + adjustable timeout)
-- Per-language TTS voice selection
-- One-time onboarding tips dialog
+- Conversation export (TXT/PDF/CSV) with export history and share support via FileProvider
+- Model Manager dialog with simple (Vosk) and advanced (Vosk + ML Kit) modes
+- Offline phrasebook (EN/ES) and one-time onboarding tips dialog
+- Per-language TTS voice selection and wake-lock during listening sessions
 - All user-facing strings moved to strings.xml
 
 ## Prioritized Backlog
-- P0: Run real-device/emulator QA for Vosk + ML Kit flow; validate FR/DE speech models and voice selection
-- P1: Add peak-hold decay customization or disable option for power users
-- P2: Add more language pairs and model size optimization (on-demand downloads)
+- P0: Run real-device/emulator QA for Vosk + ML Kit flow, model manager actions, and push-to-talk behavior
+- P1: Add model download progress per language and optional confidence thresholds
+- P2: Add more language pairs and on-demand model downloads
 
 ## Next Tasks
-- Validate on Android device/emulator for EN/ES/FR/DE speech recognition and voice selection
-- QA export history and search filtering UX
-- Consider model download compression or on-demand download flow
+- Validate on Android device/emulator for audio pipeline, PDF/CSV exports, and model manager actions
+- QA favorites filter, confidence labels, and phrasebook UX
+- Consider adding phrasebook search and audio playback

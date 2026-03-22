@@ -13,6 +13,10 @@ import android.media.audiofx.NoiseSuppressor
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.graphics.pdf.PdfDocument
 import android.speech.tts.TextToSpeech
 import android.speech.tts.Voice
 import android.text.Editable
@@ -23,7 +27,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.Spinner
@@ -33,11 +39,15 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
+import com.google.mlkit.common.model.DownloadConditions
+import com.google.mlkit.common.model.RemoteModelManager
+import com.google.mlkit.nl.translate.TranslateRemoteModel
 import com.google.mlkit.nl.languageid.LanguageIdentification
 import com.google.mlkit.nl.languageid.LanguageIdentifier
 import com.google.mlkit.nl.translate.TranslateLanguage
@@ -77,12 +87,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var swapLanguageButton: MaterialButton
     private lateinit var exportButton: MaterialButton
     private lateinit var historyButton: MaterialButton
+    private lateinit var favoritesButton: MaterialButton
+    private lateinit var phrasebookButton: MaterialButton
+    private lateinit var modelManagerButton: MaterialButton
     private lateinit var startLanguageSpinner: Spinner
     private lateinit var speakerSpinner: Spinner
     private lateinit var silenceToggleSwitch: SwitchMaterial
     private lateinit var silenceTimeoutSeekBar: SeekBar
     private lateinit var silenceTimeoutValueText: TextView
     private lateinit var noiseReductionSwitch: SwitchMaterial
+    private lateinit var pushToTalkSwitch: SwitchMaterial
     private lateinit var voiceEnglishSpinner: Spinner
     private lateinit var voiceSpanishSpinner: Spinner
     private lateinit var voiceFrenchSpinner: Spinner
@@ -128,9 +142,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var silenceTimeoutMs: Long = DEFAULT_SILENCE_TIMEOUT_MS
     private var isSilenceTimeoutEnabled: Boolean = true
     private var isNoiseReductionEnabled: Boolean = false
+    private var isPushToTalkEnabled: Boolean = false
+    private var showFavoritesOnly: Boolean = false
     private var smoothedMicLevel: Double = 0.0
     private var peakMicLevel: Double = 0.0
     private var lastPeakTimestamp: Long = 0L
+    private var wakeLock: PowerManager.WakeLock? = null
 
     private val silenceHandler = Handler(Looper.getMainLooper())
     private val silenceTimeoutRunnable = Runnable {
@@ -145,6 +162,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         setContentView(R.layout.activity_main)
 
         preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        showFavoritesOnly = preferences.getBoolean(PREF_SHOW_FAVORITES, false)
 
         subtitleTextView = findViewById(R.id.subtitle)
         conversationRecyclerView = findViewById(R.id.conversation_recycler_view)
@@ -163,12 +181,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         swapLanguageButton = findViewById(R.id.swap_language_button)
         exportButton = findViewById(R.id.export_button)
         historyButton = findViewById(R.id.history_button)
+        favoritesButton = findViewById(R.id.favorites_button)
+        phrasebookButton = findViewById(R.id.phrasebook_button)
+        modelManagerButton = findViewById(R.id.model_manager_button)
         startLanguageSpinner = findViewById(R.id.start_language_spinner)
         speakerSpinner = findViewById(R.id.speaker_spinner)
         silenceToggleSwitch = findViewById(R.id.silence_toggle_switch)
         silenceTimeoutSeekBar = findViewById(R.id.silence_timeout_seekbar)
         silenceTimeoutValueText = findViewById(R.id.silence_timeout_value)
         noiseReductionSwitch = findViewById(R.id.noise_reduction_switch)
+        pushToTalkSwitch = findViewById(R.id.push_to_talk_switch)
         voiceEnglishSpinner = findViewById(R.id.voice_english_spinner)
         voiceSpanishSpinner = findViewById(R.id.voice_spanish_spinner)
         voiceFrenchSpinner = findViewById(R.id.voice_french_spinner)
@@ -182,13 +204,18 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         clearButton.setOnClickListener { clearConversation() }
         languageToggleButton.setOnClickListener { cycleLanguageMode() }
         swapLanguageButton.setOnClickListener { swapCurrentLanguage() }
-        exportButton.setOnClickListener { exportConversation() }
+        exportButton.setOnClickListener { showExportOptions() }
         historyButton.setOnClickListener { showExportHistory() }
+        favoritesButton.setOnClickListener { toggleFavoritesFilter() }
+        phrasebookButton.setOnClickListener { showPhrasebook() }
+        modelManagerButton.setOnClickListener { showModelManager() }
         setupStartLanguageSpinner()
         setupSpeakerSpinner()
         setupSearchInput()
         setupSilenceControls()
         setupNoiseReductionToggle()
+        setupPushToTalkToggle()
+        updateFavoritesUi()
 
         LibVosk.setLogLevel(LogLevel.INFO)
 
@@ -416,6 +443,33 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
 
+    private fun setupPushToTalkToggle() {
+        isPushToTalkEnabled = preferences.getBoolean(PREF_PUSH_TO_TALK, false)
+        pushToTalkSwitch.isChecked = isPushToTalkEnabled
+        pushToTalkSwitch.setOnCheckedChangeListener { _, isChecked ->
+            isPushToTalkEnabled = isChecked
+            preferences.edit().putBoolean(PREF_PUSH_TO_TALK, isChecked).apply()
+        }
+    }
+
+    private fun toggleFavoritesFilter() {
+        showFavoritesOnly = !showFavoritesOnly
+        preferences.edit().putBoolean(PREF_SHOW_FAVORITES, showFavoritesOnly).apply()
+        updateFavoritesUi()
+        applySearchFilter(currentSearchQuery)
+    }
+
+    private fun updateFavoritesUi() {
+        val label = if (showFavoritesOnly) {
+            getString(R.string.favorites_on_label)
+        } else {
+            getString(R.string.favorites_label)
+        }
+        favoritesButton.text = label
+        val iconRes = if (showFavoritesOnly) R.drawable.ic_star_filled else R.drawable.ic_star_outline
+        favoritesButton.setIconResource(iconRes)
+    }
+
     private fun swapCurrentLanguage() {
         if (startLanguageOptions.size < 2) {
             return
@@ -441,6 +495,210 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             .setMessage(history.joinToString("\n"))
             .setPositiveButton(getString(R.string.close), null)
             .show()
+    }
+
+    private fun showPhrasebook() {
+        val phrases = listOf(
+            Pair("Hello", "Hola"),
+            Pair("Good morning", "Buenos días"),
+            Pair("Thank you", "Gracias"),
+            Pair("Please", "Por favor"),
+            Pair("How much is this?", "¿Cuánto cuesta?"),
+            Pair("Where is the bathroom?", "¿Dónde está el baño?"),
+            Pair("I need help", "Necesito ayuda"),
+            Pair("Sorry", "Lo siento")
+        )
+        val message = phrases.joinToString("\n") { "• ${it.first} — ${it.second}" }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.phrasebook_title))
+            .setMessage(message)
+            .setPositiveButton(getString(R.string.close), null)
+            .show()
+    }
+
+    private fun showModelManager() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_model_manager, null)
+        val descriptionText = dialogView.findViewById<TextView>(R.id.model_manager_description)
+        val advancedSwitch = dialogView.findViewById<SwitchMaterial>(R.id.model_manager_advanced_switch)
+        val container = dialogView.findViewById<LinearLayout>(R.id.model_list_container)
+        val storageText = dialogView.findViewById<TextView>(R.id.model_storage_summary)
+
+        val isAdvanced = preferences.getBoolean(PREF_MODEL_MANAGER_ADVANCED, false)
+        advancedSwitch.isChecked = isAdvanced
+        updateModelManagerDescription(descriptionText, isAdvanced)
+        renderModelManagerList(container, storageText, isAdvanced)
+
+        advancedSwitch.setOnCheckedChangeListener { _, checked ->
+            preferences.edit().putBoolean(PREF_MODEL_MANAGER_ADVANCED, checked).apply()
+            updateModelManagerDescription(descriptionText, checked)
+            renderModelManagerList(container, storageText, checked)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.model_manager_title))
+            .setView(dialogView)
+            .setPositiveButton(getString(R.string.close), null)
+            .show()
+    }
+
+    private fun updateModelManagerDescription(textView: TextView, advanced: Boolean) {
+        val description = if (advanced) {
+            getString(R.string.model_manager_advanced_desc)
+        } else {
+            getString(R.string.model_manager_simple_desc)
+        }
+        textView.text = description
+    }
+
+    private fun renderModelManagerList(container: LinearLayout, storageText: TextView, advanced: Boolean) {
+        container.removeAllViews()
+        container.addView(createSectionHeader(getString(R.string.model_manager_section_vosk)))
+        val voskEntries = buildVoskModelEntries { renderModelManagerList(container, storageText, advanced) }
+        voskEntries.forEach { addModelEntryView(container, it) }
+        storageText.text = getString(R.string.model_manager_storage_summary, formatStorageSize(getTotalVoskSizeBytes()))
+
+        if (!advanced) {
+            return
+        }
+        container.addView(createSectionHeader(getString(R.string.model_manager_section_mlkit)))
+        val loadingView = createInfoText(getString(R.string.model_manager_status_loading))
+        container.addView(loadingView)
+        val modelManager = RemoteModelManager.getInstance()
+        modelManager.getDownloadedModels(TranslateRemoteModel::class.java)
+            .addOnSuccessListener { downloaded ->
+                container.removeView(loadingView)
+                val downloadedLanguages = downloaded.map { it.language }.toSet()
+                val languages = listOf("en", "es", "fr", "de")
+                languages.forEach { language ->
+                    val entry = buildMlKitEntry(language, downloadedLanguages.contains(language)) {
+                        renderModelManagerList(container, storageText, advanced)
+                    }
+                    addModelEntryView(container, entry)
+                }
+            }
+            .addOnFailureListener {
+                loadingView.text = getString(R.string.model_manager_size_unknown)
+            }
+    }
+
+    private fun buildVoskModelEntries(onUpdated: () -> Unit): List<ModelEntry> {
+        return listOf(
+            buildVoskEntry("en", getString(R.string.language_label_english), ENGLISH_MODEL_ASSET_PATH, ENGLISH_MODEL_STORAGE_DIR, onUpdated),
+            buildVoskEntry("es", getString(R.string.language_label_spanish), SPANISH_MODEL_ASSET_PATH, SPANISH_MODEL_STORAGE_DIR, onUpdated),
+            buildVoskEntry("fr", getString(R.string.language_label_french), FRENCH_MODEL_ASSET_PATH, FRENCH_MODEL_STORAGE_DIR, onUpdated),
+            buildVoskEntry("de", getString(R.string.language_label_german), GERMAN_MODEL_ASSET_PATH, GERMAN_MODEL_STORAGE_DIR, onUpdated)
+        )
+    }
+
+    private fun buildVoskEntry(languageCode: String, label: String, assetPath: String, storageDir: String, onUpdated: () -> Unit): ModelEntry {
+        val dir = resolveModelDir(storageDir)
+        val isInstalled = dir != null
+        val sizeLabel = if (dir != null) formatStorageSize(calculateDirectorySize(dir)) else getString(R.string.model_manager_size_unknown)
+        val statusLabel = if (isInstalled) getString(R.string.model_manager_status_installed) else getString(R.string.model_manager_status_missing)
+        val detail = "$label • $statusLabel • $sizeLabel"
+        val actionLabel = if (isInstalled) getString(R.string.model_manager_action_remove) else getString(R.string.model_manager_action_restore)
+        return ModelEntry(label, detail, actionLabel) {
+            if (isListening) {
+                stopListening()
+            }
+            if (isInstalled && dir != null) {
+                deleteDirectory(dir)
+                clearVoskModelReference(languageCode)
+                updateStatusIfReady()
+                updateModelSizeText()
+                onUpdated()
+            } else {
+                unpackSpeechModel(assetPath, storageDir, languageCode)
+                onUpdated()
+            }
+        }
+    }
+
+    private fun buildMlKitEntry(languageCode: String, isInstalled: Boolean, onUpdated: () -> Unit): ModelEntry {
+        val languageLabel = getLanguageLabel(languageCode)
+        val statusLabel = if (isInstalled) getString(R.string.model_manager_status_installed) else getString(R.string.model_manager_status_missing)
+        val detail = "$languageLabel • $statusLabel • ${getString(R.string.model_manager_size_unknown)}"
+        val actionLabel = if (isInstalled) getString(R.string.model_manager_action_remove) else getString(R.string.model_manager_action_download)
+        val remoteModel = TranslateRemoteModel.Builder(languageCode).build()
+        val modelManager = RemoteModelManager.getInstance()
+        return ModelEntry(languageLabel, detail, actionLabel) {
+            if (isInstalled) {
+                modelManager.deleteDownloadedModel(remoteModel)
+                    .addOnSuccessListener { onUpdated() }
+                    .addOnFailureListener { showToast(getString(R.string.status_error_models)) }
+            } else {
+                val conditions = DownloadConditions.Builder().build()
+                modelManager.download(remoteModel, conditions)
+                    .addOnSuccessListener { onUpdated() }
+                    .addOnFailureListener { showToast(getString(R.string.status_error_models)) }
+            }
+        }
+    }
+
+    private fun createSectionHeader(title: String): TextView {
+        return TextView(this).apply {
+            text = title
+            setTextColor(ContextCompat.getColor(context, R.color.primary_color))
+            setTypeface(typeface, Typeface.BOLD)
+            textSize = 14f
+            setPadding(0, 16, 0, 8)
+        }
+    }
+
+    private fun createInfoText(text: String): TextView {
+        return TextView(this).apply {
+            this.text = text
+            setTextColor(ContextCompat.getColor(context, R.color.secondary_color))
+            textSize = 12f
+            setPadding(0, 4, 0, 12)
+        }
+    }
+
+    private fun addModelEntryView(container: LinearLayout, entry: ModelEntry) {
+        val row = layoutInflater.inflate(R.layout.item_model_entry, container, false)
+        row.findViewById<TextView>(R.id.model_name).text = entry.name
+        row.findViewById<TextView>(R.id.model_detail).text = entry.detail
+        val actionButton = row.findViewById<MaterialButton>(R.id.model_action_button)
+        actionButton.text = entry.actionLabel
+        actionButton.isEnabled = !isListening
+        actionButton.setOnClickListener { entry.action() }
+        container.addView(row)
+    }
+
+    private fun getTotalVoskSizeBytes(): Long {
+        val dirs = listOf(ENGLISH_MODEL_STORAGE_DIR, SPANISH_MODEL_STORAGE_DIR, FRENCH_MODEL_STORAGE_DIR, GERMAN_MODEL_STORAGE_DIR)
+        return dirs.sumOf { dirName ->
+            val dir = resolveModelDir(dirName)
+            if (dir != null) calculateDirectorySize(dir) else 0L
+        }
+    }
+
+    private fun formatStorageSize(bytes: Long): String {
+        if (bytes <= 0) {
+            return "0 MB"
+        }
+        val mb = bytes / (1024.0 * 1024.0)
+        return String.format(Locale.US, "%.1f MB", mb)
+    }
+
+    private fun deleteDirectory(directory: File) {
+        if (directory.isDirectory) {
+            directory.listFiles()?.forEach { deleteDirectory(it) }
+        }
+        directory.delete()
+    }
+
+    private fun clearVoskModelReference(languageCode: String) {
+        when (languageCode) {
+            "en" -> englishVoskModel = null
+            "es" -> spanishVoskModel = null
+            "fr" -> frenchVoskModel = null
+            "de" -> germanVoskModel = null
+        }
+    }
+
+    private fun showToast(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
     private fun showOnboardingIfNeeded() {
@@ -534,11 +792,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private fun applySearchFilter(query: String) {
         currentSearchQuery = query.trim()
         filteredMessages.clear()
+        val baseList = if (showFavoritesOnly) {
+            conversationMessages.filter { it.isFavorite }
+        } else {
+            conversationMessages
+        }
         if (currentSearchQuery.isBlank()) {
-            filteredMessages.addAll(conversationMessages)
+            filteredMessages.addAll(baseList)
         } else {
             filteredMessages.addAll(
-                conversationMessages.filter { it.text.contains(currentSearchQuery, ignoreCase = true) }
+                baseList.filter { it.text.contains(currentSearchQuery, ignoreCase = true) }
             )
         }
         conversationAdapter.notifyDataSetChanged()
@@ -765,12 +1028,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
         try {
             isListening = true
+            acquireWakeLock()
             startAudioRecognition(model)
             updateListeningUi()
             statusTextView.text = getString(R.string.status_listening)
             resetSilenceTimeout()
         } catch (e: Exception) {
             isListening = false
+            releaseWakeLock()
             setErrorState(e.message ?: getString(R.string.status_error_occurred))
         }
     }
@@ -817,9 +1082,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 val hasFinal = recognizer?.acceptWaveForm(buffer, read) ?: false
                 if (hasFinal) {
                     val resultJson = recognizer?.result ?: ""
-                    val recognizedText = parseResultText(resultJson)
-                    if (recognizedText.isNotBlank()) {
-                        runOnUiThread { handleRecognitionText(recognizedText) }
+                    val recognition = parseRecognitionResult(resultJson)
+                    if (recognition.text.isNotBlank()) {
+                        runOnUiThread { handleRecognitionResult(recognition) }
                         break
                     }
                 }
@@ -859,6 +1124,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
         recognizer = null
         releaseAudioEffects()
+        releaseWakeLock()
         micLevelMeter.progress = 0
         micLevelMeter.secondaryProgress = 0
         smoothedMicLevel = 0.0
@@ -867,23 +1133,41 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         micLevelValueText.text = getString(R.string.db_placeholder)
     }
 
-    private fun handleRecognitionText(recognizedText: String) {
+    private fun handleRecognitionResult(result: RecognizedResult) {
+        val recognizedText = result.text
         stopListening(false)
         statusTextView.text = getString(R.string.status_processing)
         if (currentMode == ConversationMode.AUTO) {
-            identifyAndTranslate(recognizedText)
+            identifyAndTranslate(recognizedText, result.confidence)
         } else {
-            addUserMessage(recognizedText, currentListeningLanguage)
+            addUserMessage(recognizedText, currentListeningLanguage, result.confidence)
             translateWithOverride(recognizedText, currentListeningLanguage)
         }
     }
 
-    private fun parseResultText(resultJson: String): String {
+    private fun parseRecognitionResult(resultJson: String): RecognizedResult {
         return try {
             val json = JSONObject(resultJson)
-            json.optString("text", "").trim()
+            val text = json.optString("text", "").trim()
+            val resultsArray = json.optJSONArray("result")
+            val confidence = if (resultsArray != null && resultsArray.length() > 0) {
+                var sum = 0.0
+                var count = 0
+                for (i in 0 until resultsArray.length()) {
+                    val wordObj = resultsArray.optJSONObject(i)
+                    val conf = wordObj?.optDouble("conf", Double.NaN) ?: Double.NaN
+                    if (!conf.isNaN()) {
+                        sum += conf
+                        count += 1
+                    }
+                }
+                if (count > 0) sum / count else null
+            } else {
+                null
+            }
+            RecognizedResult(text, confidence)
         } catch (e: Exception) {
-            ""
+            RecognizedResult("", null)
         }
     }
 
@@ -965,6 +1249,23 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         automaticGainControl = null
     }
 
+    private fun acquireWakeLock() {
+        if (wakeLock == null) {
+            val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$packageName:OfflineTranslator")
+            wakeLock?.setReferenceCounted(false)
+        }
+        if (wakeLock?.isHeld == false) {
+            wakeLock?.acquire(WAKE_LOCK_TIMEOUT_MS)
+        }
+    }
+
+    private fun releaseWakeLock() {
+        if (wakeLock?.isHeld == true) {
+            wakeLock?.release()
+        }
+    }
+
     private fun resetSilenceTimeout() {
         silenceHandler.removeCallbacks(silenceTimeoutRunnable)
         if (!isSilenceTimeoutEnabled) {
@@ -973,13 +1274,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         silenceHandler.postDelayed(silenceTimeoutRunnable, silenceTimeoutMs)
     }
 
-    private fun identifyAndTranslate(text: String) {
+    private fun identifyAndTranslate(text: String, confidence: Double? = null) {
         languageIdentifier.identifyLanguage(text)
             .addOnSuccessListener { languageCode ->
                 val normalizedCode = languageCode.lowercase(Locale.US)
                 Log.d(TAG, "Detected language: $normalizedCode")
                 if (normalizedCode == "en" || normalizedCode == "es") {
-                    addUserMessage(text, normalizedCode)
+                    addUserMessage(text, normalizedCode, confidence)
                     val targetLanguage = if (normalizedCode == "en") "es" else "en"
                     translateText(text, normalizedCode, targetLanguage)
                 } else {
@@ -1019,11 +1320,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     currentListeningLanguage = targetLanguage
                     syncStartLanguageSelection()
                     statusTextView.text = getString(R.string.status_speaking)
-                    toggleListeningButton.postDelayed({
-                        if (!isListening) {
-                            startListening()
-                        }
-                    }, RESTART_DELAY_MS)
+                    if (!isPushToTalkEnabled) {
+                        toggleListeningButton.postDelayed({
+                            if (!isListening) {
+                                startListening()
+                            }
+                        }, RESTART_DELAY_MS)
+                    }
                 }
             }
             .addOnFailureListener { exception ->
@@ -1115,6 +1418,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         startLanguageSpinner.isEnabled = !isListening && modelsReady
         speakerSpinner.isEnabled = !isListening
         noiseReductionSwitch.isEnabled = !isListening
+        pushToTalkSwitch.isEnabled = !isListening
         val voiceEnabled = !isListening
         voiceEnglishSpinner.isEnabled = voiceEnabled
         voiceSpanishSpinner.isEnabled = voiceEnabled
@@ -1130,33 +1434,34 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         updateSwapLanguageUi()
     }
 
-    private fun addUserMessage(text: String, languageCode: String) {
+    private fun addUserMessage(text: String, languageCode: String, confidence: Double? = null) {
         val speakerLabel = speakerOptions.firstOrNull { it.id == selectedSpeakerId }?.label ?: getString(R.string.speaker_a)
         val message = "${getLanguageFlag(languageCode)} ${getString(R.string.message_speaker, speakerLabel, text)}"
-        addMessage(message, MessageType.USER)
+        addMessage(message, MessageType.USER, confidence)
     }
 
     private fun addTranslationMessage(text: String, languageCode: String) {
         val message = "${getLanguageFlag(languageCode)} ${getString(R.string.message_translation, text)}"
-        addMessage(message, MessageType.TRANSLATION)
+        addMessage(message, MessageType.TRANSLATION, null)
     }
 
     private fun addSystemMessage(text: String) {
-        addMessage(text, MessageType.SYSTEM)
+        addMessage(text, MessageType.SYSTEM, null)
     }
 
-    private fun addMessage(text: String, type: MessageType) {
-        conversationMessages.add(ConversationMessage(text, type, System.currentTimeMillis()))
+    private fun addMessage(text: String, type: MessageType, confidence: Double? = null) {
+        conversationMessages.add(ConversationMessage(text, type, System.currentTimeMillis(), confidence))
         applySearchFilter(currentSearchQuery)
     }
 
     private fun updateEmptyState() {
         val isSearching = currentSearchQuery.isNotBlank()
         val isEmpty = filteredMessages.isEmpty()
-        emptyStateTextView.text = if (isSearching) {
-            getString(R.string.search_empty_state)
-        } else {
-            getString(R.string.empty_state)
+        emptyStateTextView.text = when {
+            showFavoritesOnly && isSearching -> getString(R.string.favorites_search_empty_state)
+            showFavoritesOnly -> getString(R.string.favorites_empty_state)
+            isSearching -> getString(R.string.search_empty_state)
+            else -> getString(R.string.empty_state)
         }
         if (isEmpty) {
             emptyStateTextView.visibility = View.VISIBLE
@@ -1186,24 +1491,144 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
 
-    private fun exportConversation() {
+    private fun showExportOptions() {
         if (conversationMessages.isEmpty()) {
             Toast.makeText(this, getString(R.string.export_empty), Toast.LENGTH_SHORT).show()
             return
         }
-        val transcript = conversationMessages.joinToString("\n") { it.text }
-        val fileName = "conversation_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}.txt"
-        val file = File(filesDir, fileName)
-        file.writeText(transcript)
-        addExportHistoryEntry(fileName)
-        Toast.makeText(this, getString(R.string.export_ready), Toast.LENGTH_SHORT).show()
+        val options = arrayOf(
+            getString(R.string.export_option_text),
+            getString(R.string.export_option_pdf),
+            getString(R.string.export_option_csv)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.export_dialog_title))
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> exportConversation(ExportType.TEXT)
+                    1 -> exportConversation(ExportType.PDF)
+                    2 -> exportConversation(ExportType.CSV)
+                }
+            }
+            .show()
+    }
 
+    private fun exportConversation(exportType: ExportType) {
+        if (conversationMessages.isEmpty()) {
+            Toast.makeText(this, getString(R.string.export_empty), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+        val transcript = conversationMessages.joinToString("\n") { it.text }
+        when (exportType) {
+            ExportType.TEXT -> {
+                val fileName = "conversation_${timestamp}.txt"
+                val file = File(filesDir, fileName)
+                file.writeText(transcript)
+                addExportHistoryEntry(fileName)
+                shareExportFile(file, "text/plain", fileName)
+            }
+            ExportType.PDF -> {
+                val fileName = "conversation_${timestamp}.pdf"
+                val file = File(filesDir, fileName)
+                try {
+                    createPdfFromText(transcript, file)
+                    addExportHistoryEntry(fileName)
+                    shareExportFile(file, "application/pdf", fileName)
+                } catch (e: Exception) {
+                    showToast(getString(R.string.export_failed))
+                    return
+                }
+            }
+            ExportType.CSV -> {
+                val fileName = "conversation_${timestamp}.csv"
+                val file = File(filesDir, fileName)
+                try {
+                    createCsvFile(file)
+                    addExportHistoryEntry(fileName)
+                    shareExportFile(file, "text/csv", fileName)
+                } catch (e: Exception) {
+                    showToast(getString(R.string.export_failed))
+                    return
+                }
+            }
+        }
+        Toast.makeText(this, getString(R.string.export_ready), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun shareExportFile(file: File, mimeType: String, fileName: String) {
+        val uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, transcript)
+            type = mimeType
+            putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_SUBJECT, fileName)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         startActivity(Intent.createChooser(shareIntent, getString(R.string.export_conversation)))
+    }
+
+    private fun createCsvFile(file: File) {
+        val header = "timestamp,type,text,confidence,favorite\n"
+        val body = conversationMessages.joinToString("\n") { message ->
+            val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(message.timestamp))
+            val confidence = message.confidence?.let { String.format(Locale.US, "%.2f", it) } ?: ""
+            val favorite = if (message.isFavorite) "yes" else "no"
+            listOf(time, message.type.name, escapeCsv(message.text), confidence, favorite).joinToString(",")
+        }
+        file.writeText(header + body)
+    }
+
+    private fun escapeCsv(text: String): String {
+        val escaped = text.replace("\"", "\"\"")
+        return "\"$escaped\""
+    }
+
+    private fun createPdfFromText(text: String, file: File) {
+        val pdfDocument = PdfDocument()
+        val paint = Paint().apply {
+            textSize = 12f
+            typeface = Typeface.MONOSPACE
+        }
+        val pageWidth = 595
+        val pageHeight = 842
+        val margin = 40
+        val maxWidth = pageWidth - margin * 2
+        var pageNumber = 1
+        var page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
+        var canvas = page.canvas
+        var y = margin.toFloat()
+        val lineHeight = paint.fontSpacing
+        for (line in text.split("\n")) {
+            val wrappedLines = wrapLine(line, paint, maxWidth.toFloat())
+            for (wrapped in wrappedLines) {
+                if (y + lineHeight > pageHeight - margin) {
+                    pdfDocument.finishPage(page)
+                    pageNumber += 1
+                    page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
+                    canvas = page.canvas
+                    y = margin.toFloat()
+                }
+                canvas.drawText(wrapped, margin.toFloat(), y, paint)
+                y += lineHeight
+            }
+        }
+        pdfDocument.finishPage(page)
+        file.outputStream().use { output -> pdfDocument.writeTo(output) }
+        pdfDocument.close()
+    }
+
+    private fun wrapLine(text: String, paint: Paint, maxWidth: Float): List<String> {
+        if (text.isEmpty()) {
+            return listOf("")
+        }
+        val lines = mutableListOf<String>()
+        var start = 0
+        while (start < text.length) {
+            val count = paint.breakText(text, start, text.length, true, maxWidth, null)
+            lines.add(text.substring(start, start + count))
+            start += count
+        }
+        return lines
     }
 
     private fun setErrorState(message: String) {
@@ -1211,6 +1636,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         statusTextView.text = getString(R.string.status_error_occurred)
         toggleListeningButton.isEnabled = false
         isListening = false
+        releaseWakeLock()
         updateListeningUi()
     }
 
@@ -1243,13 +1669,34 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         germanEnglishTranslator?.close()
     }
 
+    private data class ModelEntry(
+        val name: String,
+        val detail: String,
+        val actionLabel: String,
+        val action: () -> Unit
+    )
+
     private data class LanguageOption(val code: String, val label: String)
 
     private data class SpeakerOption(val id: String, val label: String)
 
     private data class VoiceOption(val name: String, val label: String)
 
-    private data class ConversationMessage(val text: String, val type: MessageType, val timestamp: Long)
+    private data class RecognizedResult(val text: String, val confidence: Double?)
+
+    private data class ConversationMessage(
+        val text: String,
+        val type: MessageType,
+        val timestamp: Long,
+        val confidence: Double? = null,
+        var isFavorite: Boolean = false
+    )
+
+    private enum class ExportType {
+        TEXT,
+        PDF,
+        CSV
+    }
 
     private enum class MessageType {
         USER,
@@ -1278,6 +1725,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             val item = items[position]
             holder.messageText.text = item.text
             holder.messageTime.text = formatTimestamp(item.timestamp)
+            if (item.type == MessageType.USER && item.confidence != null) {
+                holder.messageConfidence.visibility = View.VISIBLE
+                holder.messageConfidence.text = getString(R.string.confidence_format, item.confidence * 100)
+            } else {
+                holder.messageConfidence.visibility = View.GONE
+                holder.messageConfidence.text = ""
+            }
             val backgroundRes = when (item.type) {
                 MessageType.USER -> R.drawable.bg_message_user
                 MessageType.TRANSLATION -> R.drawable.bg_message_translation
@@ -1290,6 +1744,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 MessageType.SYSTEM -> R.color.text_secondary
             }
             holder.messageText.setTextColor(ContextCompat.getColor(holder.itemView.context, textColorRes))
+            val starIcon = if (item.isFavorite) R.drawable.ic_star_filled else R.drawable.ic_star_outline
+            holder.favoriteButton.setImageResource(starIcon)
+            holder.favoriteButton.setOnClickListener {
+                item.isFavorite = !item.isFavorite
+                applySearchFilter(currentSearchQuery)
+            }
         }
 
         override fun getItemCount(): Int = items.size
@@ -1297,6 +1757,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         inner class MessageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             val messageText: TextView = view.findViewById(R.id.message_text)
             val messageTime: TextView = view.findViewById(R.id.message_time)
+            val messageConfidence: TextView = view.findViewById(R.id.message_confidence)
+            val favoriteButton: ImageButton = view.findViewById(R.id.favorite_button)
         }
     }
 
@@ -1321,6 +1783,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         private const val PREF_SILENCE_TIMEOUT_MS = "pref_silence_timeout_ms"
         private const val PREF_SILENCE_ENABLED = "pref_silence_enabled"
         private const val PREF_NOISE_REDUCTION = "pref_noise_reduction"
+        private const val PREF_PUSH_TO_TALK = "pref_push_to_talk"
+        private const val PREF_SHOW_FAVORITES = "pref_show_favorites"
+        private const val PREF_MODEL_MANAGER_ADVANCED = "pref_model_manager_advanced"
         private const val PREF_EXPORT_HISTORY = "pref_export_history"
         private const val PREF_ONBOARDING_SHOWN = "pref_onboarding_shown"
         private const val PREF_VOICE_EN = "pref_voice_en"
@@ -1335,6 +1800,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         private const val PEAK_HOLD_MS = 2000L
         private const val PEAK_DECAY_RATE = 0.9
         private const val MIN_DB = -60.0
+        private const val WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
         private const val VOICE_DEFAULT = "default"
         private const val SPEAKER_A = "A"
         private const val SPEAKER_B = "B"
