@@ -1135,6 +1135,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun handleRecognitionResult(result: RecognizedResult) {
         val recognizedText = result.text
+        if (recognizedText.isBlank()) {
+            return
+        }
+        if (result.confidence != null && result.confidence < CONFIDENCE_THRESHOLD) {
+            handleLowConfidence(result)
+            return
+        }
         stopListening(false)
         statusTextView.text = getString(R.string.status_processing)
         if (currentMode == ConversationMode.AUTO) {
@@ -1143,6 +1150,28 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             addUserMessage(recognizedText, currentListeningLanguage, result.confidence)
             translateWithOverride(recognizedText, currentListeningLanguage)
         }
+    }
+
+    private fun handleLowConfidence(result: RecognizedResult) {
+        stopListening(false)
+        addSystemMessage(getString(R.string.low_confidence_message))
+        statusTextView.text = getString(R.string.status_low_confidence)
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.low_confidence_title))
+            .setMessage(getString(R.string.low_confidence_prompt))
+            .setPositiveButton(getString(R.string.low_confidence_translate)) { _, _ ->
+                if (currentMode == ConversationMode.AUTO) {
+                    identifyAndTranslate(result.text, result.confidence)
+                } else {
+                    addUserMessage(result.text, currentListeningLanguage, result.confidence)
+                    translateWithOverride(result.text, currentListeningLanguage)
+                }
+            }
+            .setNegativeButton(getString(R.string.low_confidence_retry)) { _, _ ->
+                statusTextView.text = getString(R.string.status_ready)
+                startListening()
+            }
+            .show()
     }
 
     private fun parseRecognitionResult(resultJson: String): RecognizedResult {
@@ -1800,6 +1829,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         private const val PEAK_HOLD_MS = 2000L
         private const val PEAK_DECAY_RATE = 0.9
         private const val MIN_DB = -60.0
+        private const val CONFIDENCE_THRESHOLD = 0.7
         private const val WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
         private const val VOICE_DEFAULT = "default"
         private const val SPEAKER_A = "A"

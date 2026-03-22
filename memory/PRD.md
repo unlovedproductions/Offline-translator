@@ -7,7 +7,7 @@
 
 ## Architecture Decisions
 - Android Kotlin single-activity app (MainActivity) remains the orchestrator
-- Conversation UI uses RecyclerView with custom message items (bubbles + timestamps + favorites + confidence) and search filtering
+- Conversation UI uses RecyclerView with custom message items (bubbles + timestamps + favorites + confidence threshold handling) and search filtering
 - Language modes: Auto (EN↔ES), EN↔ES, EN↔FR, EN↔DE with start-language dropdown and quick swap
 - Translation expanded with ML Kit translators for French and German pairs
 - Speech recognition uses Vosk models for EN/ES/FR/DE stored in assets and unpacked at runtime
@@ -19,6 +19,7 @@
 
 ## What’s Implemented
 - RecyclerView conversation history with search filtering, favorites, confidence indicators, and styled bubbles with timestamps
+- Added confidence threshold handling (low-confidence prompt with retry/translate)
 - UI state consistency fixes, smoothed mic level meter with dB readout, noise reduction toggle, push-to-talk mode, and model download progress indicator
 - Language mode toggle, start-language dropdown, quick swap, and speaker profiles
 - Additional language support (English↔French, English↔German) plus Vosk speech models for EN/ES/FR/DE

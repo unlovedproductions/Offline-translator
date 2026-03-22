@@ -26,6 +26,13 @@
     <string name="status_language_error">Language detection error</string>
     <string name="status_unsupported_language">Unsupported language detected</string>
     <string name="status_silence_timeout">Stopped after silence</string>
+
+    <string name="status_low_confidence">Low confidence</string>
+    <string name="low_confidence_title">Low confidence</string>
+    <string name="low_confidence_message">Low confidence detected. Please repeat or confirm.</string>
+    <string name="low_confidence_prompt">Would you like to retry or translate anyway?</string>
+    <string name="low_confidence_retry">Retry</string>
+    <string name="low_confidence_translate">Translate anyway</string>
     <string name="start_listening">Start Listening</string>
     <string name="stop_listening">Stop Listening</string>
     <string name="clear_conversation">Clear Conversation</string>
