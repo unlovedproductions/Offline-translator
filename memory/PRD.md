@@ -19,7 +19,7 @@
 
 ## What’s Implemented
 - RecyclerView conversation history with search filtering, favorites, confidence indicators, and styled bubbles with timestamps
-- Added confidence threshold handling (low-confidence prompt with retry/translate)
+- Added confidence threshold handling (low-confidence prompt with retry/translate) and a transcript header tooltip explaining confidence
 - UI state consistency fixes, smoothed mic level meter with dB readout, noise reduction toggle, push-to-talk mode, and model download progress indicator
 - Language mode toggle, start-language dropdown, quick swap, and speaker profiles
 - Additional language support (English↔French, English↔German) plus Vosk speech models for EN/ES/FR/DE
@@ -28,6 +28,7 @@
 - Offline phrasebook (EN/ES) and one-time onboarding tips dialog
 - Per-language TTS voice selection and wake-lock during listening sessions
 - All user-facing strings moved to strings.xml
+- Added unit tests (AppUtilsTest) and UI tests (MainActivityUiTest) covering tooltip, export options, model manager, favorites, and phrasebook
 
 ## Prioritized Backlog
 - P0: Run real-device/emulator QA for Vosk + ML Kit flow, model manager actions, and push-to-talk behavior
