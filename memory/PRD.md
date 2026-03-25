@@ -18,6 +18,7 @@
 - Export history and onboarding stored locally via SharedPreferences
 
 ## What’s Implemented
+- Created INTERNAL_REBUILD_GUIDE.md with full reconstruction steps, dependencies, assets, and validation checklist
 - RecyclerView conversation history with search filtering, favorites, confidence indicators, and styled bubbles with timestamps
 - Added confidence threshold handling (low-confidence prompt with retry/translate) and a transcript header tooltip explaining confidence
 - UI state consistency fixes, smoothed mic level meter with dB readout, noise reduction toggle, push-to-talk mode, and model download progress indicator
