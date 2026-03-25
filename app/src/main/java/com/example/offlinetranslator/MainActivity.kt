@@ -67,7 +67,6 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.log10
 import kotlin.math.max
-import kotlin.math.sqrt
 
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
@@ -75,6 +74,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var conversationRecyclerView: RecyclerView
     private lateinit var emptyStateTextView: TextView
     private lateinit var searchInput: TextInputEditText
+    private lateinit var confidenceInfoButton: ImageButton
     private lateinit var statusTextView: TextView
     private lateinit var listeningIndicatorIcon: ImageView
     private lateinit var micLevelMeter: ProgressBar
@@ -168,6 +168,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         conversationRecyclerView = findViewById(R.id.conversation_recycler_view)
         emptyStateTextView = findViewById(R.id.empty_state_text)
         searchInput = findViewById(R.id.search_input)
+        confidenceInfoButton = findViewById(R.id.confidence_info_button)
         statusTextView = findViewById(R.id.status_text)
         listeningIndicatorIcon = findViewById(R.id.listening_indicator_icon)
         micLevelMeter = findViewById(R.id.mic_level_meter)
@@ -209,6 +210,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         favoritesButton.setOnClickListener { toggleFavoritesFilter() }
         phrasebookButton.setOnClickListener { showPhrasebook() }
         modelManagerButton.setOnClickListener { showModelManager() }
+        confidenceInfoButton.setOnClickListener { showConfidenceTooltip() }
         setupStartLanguageSpinner()
         setupSpeakerSpinner()
         setupSearchInput()
@@ -497,6 +499,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             .show()
     }
 
+    private fun showConfidenceTooltip() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.confidence_tooltip_title))
+            .setMessage(getString(R.string.confidence_tooltip_message))
+            .setPositiveButton(getString(R.string.confidence_tooltip_cta), null)
+            .show()
+    }
+
     private fun showPhrasebook() {
         val phrases = listOf(
             Pair("Hello", "Hola"),
@@ -555,7 +565,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         container.addView(createSectionHeader(getString(R.string.model_manager_section_vosk)))
         val voskEntries = buildVoskModelEntries { renderModelManagerList(container, storageText, advanced) }
         voskEntries.forEach { addModelEntryView(container, it) }
-        storageText.text = getString(R.string.model_manager_storage_summary, formatStorageSize(getTotalVoskSizeBytes()))
+        storageText.text = getString(R.string.model_manager_storage_summary, AppUtils.formatStorageSize(getTotalVoskSizeBytes()))
 
         if (!advanced) {
             return
@@ -593,7 +603,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private fun buildVoskEntry(languageCode: String, label: String, assetPath: String, storageDir: String, onUpdated: () -> Unit): ModelEntry {
         val dir = resolveModelDir(storageDir)
         val isInstalled = dir != null
-        val sizeLabel = if (dir != null) formatStorageSize(calculateDirectorySize(dir)) else getString(R.string.model_manager_size_unknown)
+        val sizeLabel = if (dir != null) AppUtils.formatStorageSize(calculateDirectorySize(dir)) else getString(R.string.model_manager_size_unknown)
         val statusLabel = if (isInstalled) getString(R.string.model_manager_status_installed) else getString(R.string.model_manager_status_missing)
         val detail = "$label • $statusLabel • $sizeLabel"
         val actionLabel = if (isInstalled) getString(R.string.model_manager_action_remove) else getString(R.string.model_manager_action_restore)
@@ -671,14 +681,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             val dir = resolveModelDir(dirName)
             if (dir != null) calculateDirectorySize(dir) else 0L
         }
-    }
-
-    private fun formatStorageSize(bytes: Long): String {
-        if (bytes <= 0) {
-            return "0 MB"
-        }
-        val mb = bytes / (1024.0 * 1024.0)
-        return String.format(Locale.US, "%.1f MB", mb)
     }
 
     private fun deleteDirectory(directory: File) {
@@ -1201,7 +1203,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun updateMicLevel(buffer: ByteArray, length: Int) {
-        val rms = calculateRms(buffer, length)
+        val rms = AppUtils.calculateRms(buffer, length)
         val rawLevel = (rms / MAX_PCM_AMPLITUDE * 100.0).coerceIn(0.0, 100.0)
         smoothedMicLevel = if (smoothedMicLevel == 0.0) {
             rawLevel
@@ -1228,25 +1230,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             micLevelMeter.secondaryProgress = peakMicLevel.toInt()
             micLevelValueText.text = getString(R.string.db_format, dbValue)
         }
-    }
-
-    private fun calculateRms(buffer: ByteArray, length: Int): Double {
-        var sum = 0.0
-        val sampleCount = length / 2
-        if (sampleCount == 0) {
-            return 0.0
-        }
-        var i = 0
-        while (i < sampleCount) {
-            val index = i * 2
-            val low = buffer[index].toInt() and 0xFF
-            val high = buffer[index + 1].toInt()
-            val sample = (high shl 8) or low
-            val value = if (sample > 32767) sample - 65536 else sample
-            sum += value.toDouble() * value.toDouble()
-            i += 1
-        }
-        return sqrt(sum / sampleCount)
     }
 
     private fun setupAudioEffects(recorder: AudioRecord) {
@@ -1602,14 +1585,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(message.timestamp))
             val confidence = message.confidence?.let { String.format(Locale.US, "%.2f", it) } ?: ""
             val favorite = if (message.isFavorite) "yes" else "no"
-            listOf(time, message.type.name, escapeCsv(message.text), confidence, favorite).joinToString(",")
+            listOf(time, message.type.name, AppUtils.escapeCsv(message.text), confidence, favorite).joinToString(",")
         }
         file.writeText(header + body)
-    }
-
-    private fun escapeCsv(text: String): String {
-        val escaped = text.replace("\"", "\"\"")
-        return "\"$escaped\""
     }
 
     private fun createPdfFromText(text: String, file: File) {

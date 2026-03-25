@@ -9,6 +9,12 @@
     <string name="subtitle_en_de">English ↔ German Conversation</string>
     <string name="empty_state">Press the microphone button to start a conversation</string>
     <string name="search_hint">Search transcript</string>
+
+    <string name="transcript_title">Transcript</string>
+    <string name="confidence_info_description">About confidence scores</string>
+    <string name="confidence_tooltip_title">Confidence scores</string>
+    <string name="confidence_tooltip_message">Confidence reflects how sure the recognizer is about a phrase. Higher is better. Low confidence prompts you to retry or translate anyway.</string>
+    <string name="confidence_tooltip_cta">Got it</string>
     <string name="search_empty_state">No matching messages</string>
     <string name="favorites_empty_state">No favorites yet</string>
     <string name="favorites_search_empty_state">No favorites match your search</string>
