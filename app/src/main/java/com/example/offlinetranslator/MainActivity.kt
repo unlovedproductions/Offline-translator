@@ -1,16 +1,53 @@
 package com.example.offlinetranslator
 
 import android.Manifest
+import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.AutomaticGainControl
+import android.media.audiofx.NoiseSuppressor
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.PowerManager
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.graphics.pdf.PdfDocument
 import android.speech.tts.TextToSpeech
+import android.speech.tts.Voice
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
-import android.widget.Button
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.SeekBar
+import android.widget.Spinner
 import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.textfield.TextInputEditText
+import com.google.mlkit.common.model.DownloadConditions
+import com.google.mlkit.common.model.RemoteModelManager
+import com.google.mlkit.nl.translate.TranslateRemoteModel
 import com.google.mlkit.nl.languageid.LanguageIdentification
 import com.google.mlkit.nl.languageid.LanguageIdentifier
 import com.google.mlkit.nl.translate.TranslateLanguage
@@ -19,47 +56,191 @@ import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
 import org.vosk.LibVosk
 import org.vosk.LogLevel
+import org.vosk.Model
 import org.vosk.Recognizer
-import org.vosk.android.SpeechService
 import org.vosk.android.StorageService
+import org.json.JSONObject
+import java.io.File
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
+import kotlin.math.log10
+import kotlin.math.max
 
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
-    private lateinit var resultTextView: TextView
+    private lateinit var subtitleTextView: TextView
+    private lateinit var conversationRecyclerView: RecyclerView
+    private lateinit var emptyStateTextView: TextView
+    private lateinit var searchInput: TextInputEditText
+    private lateinit var confidenceInfoButton: ImageButton
     private lateinit var statusTextView: TextView
+    private lateinit var listeningIndicatorIcon: ImageView
+    private lateinit var micLevelMeter: ProgressBar
+    private lateinit var micLevelValueText: TextView
+    private lateinit var modelDownloadProgress: ProgressBar
+    private lateinit var modelSizeTextView: TextView
     private lateinit var toggleListeningButton: MaterialButton
     private lateinit var clearButton: MaterialButton
-    private var voskModel: org.vosk.Model? = null
-    private var speechService: SpeechService? = null
+    private lateinit var languageToggleButton: MaterialButton
+    private lateinit var swapLanguageButton: MaterialButton
+    private lateinit var exportButton: MaterialButton
+    private lateinit var historyButton: MaterialButton
+    private lateinit var favoritesButton: MaterialButton
+    private lateinit var phrasebookButton: MaterialButton
+    private lateinit var modelManagerButton: MaterialButton
+    private lateinit var startLanguageSpinner: Spinner
+    private lateinit var speakerSpinner: Spinner
+    private lateinit var silenceToggleSwitch: SwitchMaterial
+    private lateinit var silenceTimeoutSeekBar: SeekBar
+    private lateinit var silenceTimeoutValueText: TextView
+    private lateinit var noiseReductionSwitch: SwitchMaterial
+    private lateinit var pushToTalkSwitch: SwitchMaterial
+    private lateinit var voiceEnglishSpinner: Spinner
+    private lateinit var voiceSpanishSpinner: Spinner
+    private lateinit var voiceFrenchSpinner: Spinner
+    private lateinit var voiceGermanSpinner: Spinner
+    private lateinit var conversationAdapter: ConversationAdapter
+    private val conversationMessages = mutableListOf<ConversationMessage>()
+    private val filteredMessages = mutableListOf<ConversationMessage>()
+    private var currentSearchQuery: String = ""
+    private var startLanguageOptions: List<LanguageOption> = emptyList()
+    private var isUpdatingStartLanguage: Boolean = false
+    private var speakerOptions: List<SpeakerOption> = emptyList()
+    private var isUpdatingSpeaker: Boolean = false
+    private var selectedSpeakerId: String = SPEAKER_A
+    private var voiceOptionsByLanguage: Map<String, List<VoiceOption>> = emptyMap()
+    private var selectedVoiceByLanguage: MutableMap<String, String> = mutableMapOf()
+    private var isUpdatingVoiceSelection: Boolean = false
+    private lateinit var preferences: SharedPreferences
+
+    private var englishVoskModel: Model? = null
+    private var spanishVoskModel: Model? = null
+    private var frenchVoskModel: Model? = null
+    private var germanVoskModel: Model? = null
+    private var audioRecord: AudioRecord? = null
+    private var recordingThread: Thread? = null
+    private var recognizer: Recognizer? = null
+    private var noiseSuppressor: NoiseSuppressor? = null
+    private var echoCanceler: AcousticEchoCanceler? = null
+    private var automaticGainControl: AutomaticGainControl? = null
     private var tts: TextToSpeech? = null
     private lateinit var languageIdentifier: LanguageIdentifier
     private var englishSpanishTranslator: Translator? = null
     private var spanishEnglishTranslator: Translator? = null
+    private var englishFrenchTranslator: Translator? = null
+    private var frenchEnglishTranslator: Translator? = null
+    private var englishGermanTranslator: Translator? = null
+    private var germanEnglishTranslator: Translator? = null
 
+    private var currentMode: ConversationMode = ConversationMode.AUTO
     private var currentListeningLanguage: String = "en"
     private var isListening: Boolean = false
+    private var pendingModelDownloads: Int = 0
+    private var pendingSpeechModelLoads: Int = 0
+    private var silenceTimeoutMs: Long = DEFAULT_SILENCE_TIMEOUT_MS
+    private var isSilenceTimeoutEnabled: Boolean = true
+    private var isNoiseReductionEnabled: Boolean = false
+    private var isPushToTalkEnabled: Boolean = false
+    private var showFavoritesOnly: Boolean = false
+    private var smoothedMicLevel: Double = 0.0
+    private var peakMicLevel: Double = 0.0
+    private var lastPeakTimestamp: Long = 0L
+    private var wakeLock: PowerManager.WakeLock? = null
+
+    private val silenceHandler = Handler(Looper.getMainLooper())
+    private val silenceTimeoutRunnable = Runnable {
+        if (isListening) {
+            stopListening()
+            statusTextView.text = getString(R.string.status_silence_timeout)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        resultTextView = findViewById(R.id.result_text_view)
+        preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        showFavoritesOnly = preferences.getBoolean(PREF_SHOW_FAVORITES, false)
+
+        subtitleTextView = findViewById(R.id.subtitle)
+        conversationRecyclerView = findViewById(R.id.conversation_recycler_view)
+        emptyStateTextView = findViewById(R.id.empty_state_text)
+        searchInput = findViewById(R.id.search_input)
+        confidenceInfoButton = findViewById(R.id.confidence_info_button)
         statusTextView = findViewById(R.id.status_text)
+        listeningIndicatorIcon = findViewById(R.id.listening_indicator_icon)
+        micLevelMeter = findViewById(R.id.mic_level_meter)
+        micLevelMeter.max = 100
+        micLevelValueText = findViewById(R.id.mic_level_value)
+        modelDownloadProgress = findViewById(R.id.model_download_progress)
+        modelSizeTextView = findViewById(R.id.model_size_text)
         toggleListeningButton = findViewById(R.id.toggle_listening_button)
         clearButton = findViewById(R.id.clear_button)
+        languageToggleButton = findViewById(R.id.language_toggle_button)
+        swapLanguageButton = findViewById(R.id.swap_language_button)
+        exportButton = findViewById(R.id.export_button)
+        historyButton = findViewById(R.id.history_button)
+        favoritesButton = findViewById(R.id.favorites_button)
+        phrasebookButton = findViewById(R.id.phrasebook_button)
+        modelManagerButton = findViewById(R.id.model_manager_button)
+        startLanguageSpinner = findViewById(R.id.start_language_spinner)
+        speakerSpinner = findViewById(R.id.speaker_spinner)
+        silenceToggleSwitch = findViewById(R.id.silence_toggle_switch)
+        silenceTimeoutSeekBar = findViewById(R.id.silence_timeout_seekbar)
+        silenceTimeoutValueText = findViewById(R.id.silence_timeout_value)
+        noiseReductionSwitch = findViewById(R.id.noise_reduction_switch)
+        pushToTalkSwitch = findViewById(R.id.push_to_talk_switch)
+        voiceEnglishSpinner = findViewById(R.id.voice_english_spinner)
+        voiceSpanishSpinner = findViewById(R.id.voice_spanish_spinner)
+        voiceFrenchSpinner = findViewById(R.id.voice_french_spinner)
+        voiceGermanSpinner = findViewById(R.id.voice_german_spinner)
+
+        conversationAdapter = ConversationAdapter(filteredMessages)
+        conversationRecyclerView.layoutManager = LinearLayoutManager(this)
+        conversationRecyclerView.adapter = conversationAdapter
 
         toggleListeningButton.setOnClickListener { toggleListening() }
         clearButton.setOnClickListener { clearConversation() }
+        languageToggleButton.setOnClickListener { cycleLanguageMode() }
+        swapLanguageButton.setOnClickListener { swapCurrentLanguage() }
+        exportButton.setOnClickListener { showExportOptions() }
+        historyButton.setOnClickListener { showExportHistory() }
+        favoritesButton.setOnClickListener { toggleFavoritesFilter() }
+        phrasebookButton.setOnClickListener { showPhrasebook() }
+        modelManagerButton.setOnClickListener { showModelManager() }
+        confidenceInfoButton.setOnClickListener { showConfidenceTooltip() }
+        setupStartLanguageSpinner()
+        setupSpeakerSpinner()
+        setupSearchInput()
+        setupSilenceControls()
+        setupNoiseReductionToggle()
+        setupPushToTalkToggle()
+        updateFavoritesUi()
 
         LibVosk.setLogLevel(LogLevel.INFO)
 
         tts = TextToSpeech(this, this)
-
         languageIdentifier = LanguageIdentification.getClient()
 
-        // Initialize translators
+        initializeTranslators()
+        downloadTranslationModels()
+        updateModeUi()
+        updateListeningUi()
+        updateEmptyState()
+        updateModelDownloadUi()
+        updateModelSizeText()
+        showOnboardingIfNeeded()
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), RECORD_AUDIO_PERMISSION_CODE)
+        } else {
+            initVoskModels()
+        }
+    }
+
+    private fun initializeTranslators() {
         val englishSpanishOptions = TranslatorOptions.Builder()
             .setSourceLanguage(TranslateLanguage.ENGLISH)
             .setTargetLanguage(TranslateLanguage.SPANISH)
@@ -72,49 +253,629 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             .build()
         spanishEnglishTranslator = Translation.getClient(spanishEnglishOptions)
 
-        // Download translation models
-        downloadTranslationModels()
+        val englishFrenchOptions = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.ENGLISH)
+            .setTargetLanguage(TranslateLanguage.FRENCH)
+            .build()
+        englishFrenchTranslator = Translation.getClient(englishFrenchOptions)
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), RECORD_AUDIO_PERMISSION_CODE)
-        } else {
-            initVoskModel()
+        val frenchEnglishOptions = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.FRENCH)
+            .setTargetLanguage(TranslateLanguage.ENGLISH)
+            .build()
+        frenchEnglishTranslator = Translation.getClient(frenchEnglishOptions)
+
+        val englishGermanOptions = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.ENGLISH)
+            .setTargetLanguage(TranslateLanguage.GERMAN)
+            .build()
+        englishGermanTranslator = Translation.getClient(englishGermanOptions)
+
+        val germanEnglishOptions = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.GERMAN)
+            .setTargetLanguage(TranslateLanguage.ENGLISH)
+            .build()
+        germanEnglishTranslator = Translation.getClient(germanEnglishOptions)
+    }
+
+    private fun setupStartLanguageSpinner() {
+        startLanguageSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                if (isUpdatingStartLanguage) {
+                    return
+                }
+                if (position < 0 || position >= startLanguageOptions.size) {
+                    return
+                }
+                val selected = startLanguageOptions[position]
+                if (currentListeningLanguage != selected.code) {
+                    currentListeningLanguage = selected.code
+                    if (!isListening) {
+                        statusTextView.text = getString(R.string.status_ready)
+                    }
+                }
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>) {
+                // No-op
+            }
         }
     }
 
+    private fun updateStartLanguageOptions() {
+        val options = when (currentMode) {
+            ConversationMode.AUTO -> listOf(
+                LanguageOption("en", getString(R.string.language_option_english)),
+                LanguageOption("es", getString(R.string.language_option_spanish))
+            )
+            ConversationMode.ENGLISH_SPANISH -> listOf(
+                LanguageOption("en", getString(R.string.language_option_english)),
+                LanguageOption("es", getString(R.string.language_option_spanish))
+            )
+            ConversationMode.ENGLISH_FRENCH -> listOf(
+                LanguageOption("en", getString(R.string.language_option_english)),
+                LanguageOption("fr", getString(R.string.language_option_french))
+            )
+            ConversationMode.ENGLISH_GERMAN -> listOf(
+                LanguageOption("en", getString(R.string.language_option_english)),
+                LanguageOption("de", getString(R.string.language_option_german))
+            )
+        }
+        startLanguageOptions = options
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, options.map { it.label })
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        startLanguageSpinner.adapter = adapter
+
+        val selectedIndex = options.indexOfFirst { it.code == currentListeningLanguage }.takeIf { it >= 0 } ?: 0
+        isUpdatingStartLanguage = true
+        startLanguageSpinner.setSelection(selectedIndex, false)
+        currentListeningLanguage = options[selectedIndex].code
+        isUpdatingStartLanguage = false
+    }
+
+    private fun syncStartLanguageSelection() {
+        val selectedIndex = startLanguageOptions.indexOfFirst { it.code == currentListeningLanguage }
+        if (selectedIndex >= 0) {
+            isUpdatingStartLanguage = true
+            startLanguageSpinner.setSelection(selectedIndex, false)
+            isUpdatingStartLanguage = false
+        }
+    }
+
+    private fun setupSearchInput() {
+        searchInput.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                applySearchFilter(s?.toString() ?: "")
+            }
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                // No-op
+            }
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                // No-op
+            }
+        })
+    }
+
+    private fun setupSpeakerSpinner() {
+        speakerOptions = listOf(
+            SpeakerOption(SPEAKER_A, getString(R.string.speaker_a)),
+            SpeakerOption(SPEAKER_B, getString(R.string.speaker_b))
+        )
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, speakerOptions.map { it.label })
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        speakerSpinner.adapter = adapter
+        selectedSpeakerId = preferences.getString(PREF_SPEAKER, SPEAKER_A) ?: SPEAKER_A
+        val selectedIndex = speakerOptions.indexOfFirst { it.id == selectedSpeakerId }.takeIf { it >= 0 } ?: 0
+        isUpdatingSpeaker = true
+        speakerSpinner.setSelection(selectedIndex, false)
+        isUpdatingSpeaker = false
+        speakerSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                if (isUpdatingSpeaker) {
+                    return
+                }
+                if (position < 0 || position >= speakerOptions.size) {
+                    return
+                }
+                selectedSpeakerId = speakerOptions[position].id
+                preferences.edit().putString(PREF_SPEAKER, selectedSpeakerId).apply()
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>) {
+                // No-op
+            }
+        }
+    }
+
+    private fun setupSilenceControls() {
+        isSilenceTimeoutEnabled = preferences.getBoolean(PREF_SILENCE_ENABLED, true)
+        silenceToggleSwitch.isChecked = isSilenceTimeoutEnabled
+        silenceToggleSwitch.setOnCheckedChangeListener { _, isChecked ->
+            isSilenceTimeoutEnabled = isChecked
+            preferences.edit().putBoolean(PREF_SILENCE_ENABLED, isChecked).apply()
+            silenceTimeoutSeekBar.isEnabled = isChecked
+            if (!isChecked) {
+                silenceHandler.removeCallbacks(silenceTimeoutRunnable)
+            } else if (isListening) {
+                resetSilenceTimeout()
+            }
+        }
+
+        silenceTimeoutMs = preferences.getLong(PREF_SILENCE_TIMEOUT_MS, DEFAULT_SILENCE_TIMEOUT_MS)
+            .coerceIn(MIN_SILENCE_TIMEOUT_MS, MAX_SILENCE_TIMEOUT_MS)
+        silenceTimeoutSeekBar.max = ((MAX_SILENCE_TIMEOUT_MS - MIN_SILENCE_TIMEOUT_MS) / SILENCE_STEP_MS).toInt()
+        silenceTimeoutSeekBar.progress = ((silenceTimeoutMs - MIN_SILENCE_TIMEOUT_MS) / SILENCE_STEP_MS).toInt()
+        silenceTimeoutValueText.text = formatSilenceTimeout(silenceTimeoutMs)
+        silenceTimeoutSeekBar.isEnabled = isSilenceTimeoutEnabled
+        silenceTimeoutSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                silenceTimeoutMs = MIN_SILENCE_TIMEOUT_MS + progress * SILENCE_STEP_MS
+                silenceTimeoutValueText.text = formatSilenceTimeout(silenceTimeoutMs)
+                preferences.edit().putLong(PREF_SILENCE_TIMEOUT_MS, silenceTimeoutMs).apply()
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                // No-op
+            }
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                // No-op
+            }
+        })
+    }
+
+    private fun setupNoiseReductionToggle() {
+        val effectsAvailable = NoiseSuppressor.isAvailable() || AcousticEchoCanceler.isAvailable() || AutomaticGainControl.isAvailable()
+        if (!effectsAvailable) {
+            noiseReductionSwitch.isEnabled = false
+            noiseReductionSwitch.isChecked = false
+            return
+        }
+        isNoiseReductionEnabled = preferences.getBoolean(PREF_NOISE_REDUCTION, false)
+        noiseReductionSwitch.isChecked = isNoiseReductionEnabled
+        noiseReductionSwitch.setOnCheckedChangeListener { _, isChecked ->
+            isNoiseReductionEnabled = isChecked
+            preferences.edit().putBoolean(PREF_NOISE_REDUCTION, isChecked).apply()
+            if (isListening) {
+                stopListening()
+                startListening()
+            }
+        }
+    }
+
+    private fun setupPushToTalkToggle() {
+        isPushToTalkEnabled = preferences.getBoolean(PREF_PUSH_TO_TALK, false)
+        pushToTalkSwitch.isChecked = isPushToTalkEnabled
+        pushToTalkSwitch.setOnCheckedChangeListener { _, isChecked ->
+            isPushToTalkEnabled = isChecked
+            preferences.edit().putBoolean(PREF_PUSH_TO_TALK, isChecked).apply()
+        }
+    }
+
+    private fun toggleFavoritesFilter() {
+        showFavoritesOnly = !showFavoritesOnly
+        preferences.edit().putBoolean(PREF_SHOW_FAVORITES, showFavoritesOnly).apply()
+        updateFavoritesUi()
+        applySearchFilter(currentSearchQuery)
+    }
+
+    private fun updateFavoritesUi() {
+        val label = if (showFavoritesOnly) {
+            getString(R.string.favorites_on_label)
+        } else {
+            getString(R.string.favorites_label)
+        }
+        favoritesButton.text = label
+        val iconRes = if (showFavoritesOnly) R.drawable.ic_star_filled else R.drawable.ic_star_outline
+        favoritesButton.setIconResource(iconRes)
+    }
+
+    private fun swapCurrentLanguage() {
+        if (startLanguageOptions.size < 2) {
+            return
+        }
+        val currentIndex = startLanguageOptions.indexOfFirst { it.code == currentListeningLanguage }
+        val nextIndex = if (currentIndex == 0) 1 else 0
+        currentListeningLanguage = startLanguageOptions.getOrNull(nextIndex)?.code ?: currentListeningLanguage
+        syncStartLanguageSelection()
+        if (isListening) {
+            stopListening()
+        }
+        statusTextView.text = getString(R.string.status_ready)
+    }
+
+    private fun showExportHistory() {
+        val history = loadExportHistory()
+        if (history.isEmpty()) {
+            Toast.makeText(this, getString(R.string.export_history_empty), Toast.LENGTH_SHORT).show()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.export_history_title))
+            .setMessage(history.joinToString("\n"))
+            .setPositiveButton(getString(R.string.close), null)
+            .show()
+    }
+
+    private fun showConfidenceTooltip() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.confidence_tooltip_title))
+            .setMessage(getString(R.string.confidence_tooltip_message))
+            .setPositiveButton(getString(R.string.confidence_tooltip_cta), null)
+            .show()
+    }
+
+    private fun showPhrasebook() {
+        val phrases = listOf(
+            Pair("Hello", "Hola"),
+            Pair("Good morning", "Buenos días"),
+            Pair("Thank you", "Gracias"),
+            Pair("Please", "Por favor"),
+            Pair("How much is this?", "¿Cuánto cuesta?"),
+            Pair("Where is the bathroom?", "¿Dónde está el baño?"),
+            Pair("I need help", "Necesito ayuda"),
+            Pair("Sorry", "Lo siento")
+        )
+        val message = phrases.joinToString("\n") { "• ${it.first} — ${it.second}" }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.phrasebook_title))
+            .setMessage(message)
+            .setPositiveButton(getString(R.string.close), null)
+            .show()
+    }
+
+    private fun showModelManager() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_model_manager, null)
+        val descriptionText = dialogView.findViewById<TextView>(R.id.model_manager_description)
+        val advancedSwitch = dialogView.findViewById<SwitchMaterial>(R.id.model_manager_advanced_switch)
+        val container = dialogView.findViewById<LinearLayout>(R.id.model_list_container)
+        val storageText = dialogView.findViewById<TextView>(R.id.model_storage_summary)
+
+        val isAdvanced = preferences.getBoolean(PREF_MODEL_MANAGER_ADVANCED, false)
+        advancedSwitch.isChecked = isAdvanced
+        updateModelManagerDescription(descriptionText, isAdvanced)
+        renderModelManagerList(container, storageText, isAdvanced)
+
+        advancedSwitch.setOnCheckedChangeListener { _, checked ->
+            preferences.edit().putBoolean(PREF_MODEL_MANAGER_ADVANCED, checked).apply()
+            updateModelManagerDescription(descriptionText, checked)
+            renderModelManagerList(container, storageText, checked)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.model_manager_title))
+            .setView(dialogView)
+            .setPositiveButton(getString(R.string.close), null)
+            .show()
+    }
+
+    private fun updateModelManagerDescription(textView: TextView, advanced: Boolean) {
+        val description = if (advanced) {
+            getString(R.string.model_manager_advanced_desc)
+        } else {
+            getString(R.string.model_manager_simple_desc)
+        }
+        textView.text = description
+    }
+
+    private fun renderModelManagerList(container: LinearLayout, storageText: TextView, advanced: Boolean) {
+        container.removeAllViews()
+        container.addView(createSectionHeader(getString(R.string.model_manager_section_vosk)))
+        val voskEntries = buildVoskModelEntries { renderModelManagerList(container, storageText, advanced) }
+        voskEntries.forEach { addModelEntryView(container, it) }
+        storageText.text = getString(R.string.model_manager_storage_summary, AppUtils.formatStorageSize(getTotalVoskSizeBytes()))
+
+        if (!advanced) {
+            return
+        }
+        container.addView(createSectionHeader(getString(R.string.model_manager_section_mlkit)))
+        val loadingView = createInfoText(getString(R.string.model_manager_status_loading))
+        container.addView(loadingView)
+        val modelManager = RemoteModelManager.getInstance()
+        modelManager.getDownloadedModels(TranslateRemoteModel::class.java)
+            .addOnSuccessListener { downloaded ->
+                container.removeView(loadingView)
+                val downloadedLanguages = downloaded.map { it.language }.toSet()
+                val languages = listOf("en", "es", "fr", "de")
+                languages.forEach { language ->
+                    val entry = buildMlKitEntry(language, downloadedLanguages.contains(language)) {
+                        renderModelManagerList(container, storageText, advanced)
+                    }
+                    addModelEntryView(container, entry)
+                }
+            }
+            .addOnFailureListener {
+                loadingView.text = getString(R.string.model_manager_size_unknown)
+            }
+    }
+
+    private fun buildVoskModelEntries(onUpdated: () -> Unit): List<ModelEntry> {
+        return listOf(
+            buildVoskEntry("en", getString(R.string.language_label_english), ENGLISH_MODEL_ASSET_PATH, ENGLISH_MODEL_STORAGE_DIR, onUpdated),
+            buildVoskEntry("es", getString(R.string.language_label_spanish), SPANISH_MODEL_ASSET_PATH, SPANISH_MODEL_STORAGE_DIR, onUpdated),
+            buildVoskEntry("fr", getString(R.string.language_label_french), FRENCH_MODEL_ASSET_PATH, FRENCH_MODEL_STORAGE_DIR, onUpdated),
+            buildVoskEntry("de", getString(R.string.language_label_german), GERMAN_MODEL_ASSET_PATH, GERMAN_MODEL_STORAGE_DIR, onUpdated)
+        )
+    }
+
+    private fun buildVoskEntry(languageCode: String, label: String, assetPath: String, storageDir: String, onUpdated: () -> Unit): ModelEntry {
+        val dir = resolveModelDir(storageDir)
+        val isInstalled = dir != null
+        val sizeLabel = if (dir != null) AppUtils.formatStorageSize(calculateDirectorySize(dir)) else getString(R.string.model_manager_size_unknown)
+        val statusLabel = if (isInstalled) getString(R.string.model_manager_status_installed) else getString(R.string.model_manager_status_missing)
+        val detail = "$label • $statusLabel • $sizeLabel"
+        val actionLabel = if (isInstalled) getString(R.string.model_manager_action_remove) else getString(R.string.model_manager_action_restore)
+        return ModelEntry(label, detail, actionLabel) {
+            if (isListening) {
+                stopListening()
+            }
+            if (isInstalled && dir != null) {
+                deleteDirectory(dir)
+                clearVoskModelReference(languageCode)
+                updateStatusIfReady()
+                updateModelSizeText()
+                onUpdated()
+            } else {
+                unpackSpeechModel(assetPath, storageDir, languageCode)
+                onUpdated()
+            }
+        }
+    }
+
+    private fun buildMlKitEntry(languageCode: String, isInstalled: Boolean, onUpdated: () -> Unit): ModelEntry {
+        val languageLabel = getLanguageLabel(languageCode)
+        val statusLabel = if (isInstalled) getString(R.string.model_manager_status_installed) else getString(R.string.model_manager_status_missing)
+        val detail = "$languageLabel • $statusLabel • ${getString(R.string.model_manager_size_unknown)}"
+        val actionLabel = if (isInstalled) getString(R.string.model_manager_action_remove) else getString(R.string.model_manager_action_download)
+        val remoteModel = TranslateRemoteModel.Builder(languageCode).build()
+        val modelManager = RemoteModelManager.getInstance()
+        return ModelEntry(languageLabel, detail, actionLabel) {
+            if (isInstalled) {
+                modelManager.deleteDownloadedModel(remoteModel)
+                    .addOnSuccessListener { onUpdated() }
+                    .addOnFailureListener { showToast(getString(R.string.status_error_models)) }
+            } else {
+                val conditions = DownloadConditions.Builder().build()
+                modelManager.download(remoteModel, conditions)
+                    .addOnSuccessListener { onUpdated() }
+                    .addOnFailureListener { showToast(getString(R.string.status_error_models)) }
+            }
+        }
+    }
+
+    private fun createSectionHeader(title: String): TextView {
+        return TextView(this).apply {
+            text = title
+            setTextColor(ContextCompat.getColor(context, R.color.primary_color))
+            setTypeface(typeface, Typeface.BOLD)
+            textSize = 14f
+            setPadding(0, 16, 0, 8)
+        }
+    }
+
+    private fun createInfoText(text: String): TextView {
+        return TextView(this).apply {
+            this.text = text
+            setTextColor(ContextCompat.getColor(context, R.color.secondary_color))
+            textSize = 12f
+            setPadding(0, 4, 0, 12)
+        }
+    }
+
+    private fun addModelEntryView(container: LinearLayout, entry: ModelEntry) {
+        val row = layoutInflater.inflate(R.layout.item_model_entry, container, false)
+        row.findViewById<TextView>(R.id.model_name).text = entry.name
+        row.findViewById<TextView>(R.id.model_detail).text = entry.detail
+        val actionButton = row.findViewById<MaterialButton>(R.id.model_action_button)
+        actionButton.text = entry.actionLabel
+        actionButton.isEnabled = !isListening
+        actionButton.setOnClickListener { entry.action() }
+        container.addView(row)
+    }
+
+    private fun getTotalVoskSizeBytes(): Long {
+        val dirs = listOf(ENGLISH_MODEL_STORAGE_DIR, SPANISH_MODEL_STORAGE_DIR, FRENCH_MODEL_STORAGE_DIR, GERMAN_MODEL_STORAGE_DIR)
+        return dirs.sumOf { dirName ->
+            val dir = resolveModelDir(dirName)
+            if (dir != null) calculateDirectorySize(dir) else 0L
+        }
+    }
+
+    private fun deleteDirectory(directory: File) {
+        if (directory.isDirectory) {
+            directory.listFiles()?.forEach { deleteDirectory(it) }
+        }
+        directory.delete()
+    }
+
+    private fun clearVoskModelReference(languageCode: String) {
+        when (languageCode) {
+            "en" -> englishVoskModel = null
+            "es" -> spanishVoskModel = null
+            "fr" -> frenchVoskModel = null
+            "de" -> germanVoskModel = null
+        }
+    }
+
+    private fun showToast(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showOnboardingIfNeeded() {
+        if (preferences.getBoolean(PREF_ONBOARDING_SHOWN, false)) {
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.onboarding_title))
+            .setMessage(getString(R.string.onboarding_message))
+            .setPositiveButton(getString(R.string.onboarding_cta)) { _, _ ->
+                preferences.edit().putBoolean(PREF_ONBOARDING_SHOWN, true).apply()
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun loadExportHistory(): MutableList<String> {
+        val raw = preferences.getString(PREF_EXPORT_HISTORY, "") ?: ""
+        if (raw.isBlank()) {
+            return mutableListOf()
+        }
+        return raw.split(EXPORT_HISTORY_SEPARATOR).filter { it.isNotBlank() }.toMutableList()
+    }
+
+    private fun saveExportHistory(history: List<String>) {
+        val serialized = history.joinToString(EXPORT_HISTORY_SEPARATOR)
+        preferences.edit().putString(PREF_EXPORT_HISTORY, serialized).apply()
+    }
+
+    private fun addExportHistoryEntry(fileName: String) {
+        val history = loadExportHistory()
+        val timestamp = SimpleDateFormat("MMM dd, HH:mm", Locale.US).format(Date())
+        history.add(0, "$timestamp • $fileName")
+        if (history.size > MAX_EXPORT_HISTORY) {
+            history.subList(MAX_EXPORT_HISTORY, history.size).clear()
+        }
+        saveExportHistory(history)
+    }
+
+    private fun updateModelDownloadUi() {
+        val isLoading = pendingModelDownloads > 0 || pendingSpeechModelLoads > 0
+        modelDownloadProgress.visibility = if (isLoading) View.VISIBLE else View.GONE
+    }
+
+    private fun updateModelSizeText() {
+        if (!areSpeechModelsReady()) {
+            modelSizeTextView.text = getString(R.string.model_size_loading)
+            return
+        }
+        val entries = listOf(
+            Pair("EN", getModelSizeMb(ENGLISH_MODEL_STORAGE_DIR)),
+            Pair("ES", getModelSizeMb(SPANISH_MODEL_STORAGE_DIR)),
+            Pair("FR", getModelSizeMb(FRENCH_MODEL_STORAGE_DIR)),
+            Pair("DE", getModelSizeMb(GERMAN_MODEL_STORAGE_DIR))
+        )
+        val parts = entries.mapNotNull { (label, size) ->
+            size?.let { "$label ${it}MB" }
+        }
+        modelSizeTextView.text = if (parts.isEmpty()) {
+            getString(R.string.model_size_unknown)
+        } else {
+            getString(R.string.model_size_prefix) + " " + parts.joinToString(" • ")
+        }
+    }
+
+    private fun getModelSizeMb(directoryName: String): Long? {
+        val dir = resolveModelDir(directoryName) ?: return null
+        val sizeBytes = calculateDirectorySize(dir)
+        return if (sizeBytes > 0) sizeBytes / (1024 * 1024) else null
+    }
+
+    private fun resolveModelDir(directoryName: String): File? {
+        val candidates = listOf(
+            File(filesDir, directoryName),
+            getExternalFilesDir(null)?.let { File(it, directoryName) },
+            File(cacheDir, directoryName)
+        ).filterNotNull()
+        return candidates.firstOrNull { it.exists() }
+    }
+
+    private fun calculateDirectorySize(directory: File): Long {
+        if (!directory.exists()) {
+            return 0L
+        }
+        if (directory.isFile) {
+            return directory.length()
+        }
+        return directory.listFiles()?.sumOf { calculateDirectorySize(it) } ?: 0L
+    }
+
+    private fun applySearchFilter(query: String) {
+        currentSearchQuery = query.trim()
+        filteredMessages.clear()
+        val baseList = if (showFavoritesOnly) {
+            conversationMessages.filter { it.isFavorite }
+        } else {
+            conversationMessages
+        }
+        if (currentSearchQuery.isBlank()) {
+            filteredMessages.addAll(baseList)
+        } else {
+            filteredMessages.addAll(
+                baseList.filter { it.text.contains(currentSearchQuery, ignoreCase = true) }
+            )
+        }
+        conversationAdapter.notifyDataSetChanged()
+        updateEmptyState()
+        if (filteredMessages.isNotEmpty()) {
+            conversationRecyclerView.scrollToPosition(filteredMessages.size - 1)
+        }
+    }
+
+    private fun formatSilenceTimeout(timeoutMs: Long): String {
+        return getString(R.string.silence_timeout_value, timeoutMs / 1000.0)
+    }
+
+    private fun formatTimestamp(timestamp: Long): String {
+        return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
+    }
+
     private fun clearConversation() {
-        resultTextView.text = "Press the microphone button to start a conversation"
-        statusTextView.text = "Ready to listen"
+        if (isListening) {
+            stopListening()
+        }
+        conversationMessages.clear()
+        filteredMessages.clear()
+        conversationAdapter.notifyDataSetChanged()
+        currentSearchQuery = ""
+        searchInput.setText("")
+        updateEmptyState()
         currentListeningLanguage = "en"
+        syncStartLanguageSelection()
+        statusTextView.text = getString(R.string.status_ready)
     }
 
     private fun downloadTranslationModels() {
-        statusTextView.text = "Downloading translation models..."
-        
-        englishSpanishTranslator?.downloadModelIfNeeded()
-            ?.addOnSuccessListener { 
-                Log.d(TAG, "English-Spanish model downloaded")
-                updateStatusIfReady()
-            }
-            ?.addOnFailureListener { exception -> 
-                Log.e(TAG, "Error downloading English-Spanish model", exception)
-                statusTextView.text = "Error downloading models"
-            }
+        statusTextView.text = getString(R.string.status_downloading)
+        updateModelDownloadUi()
+        startModelDownload(englishSpanishTranslator, "English-Spanish")
+        startModelDownload(spanishEnglishTranslator, "Spanish-English")
+        startModelDownload(englishFrenchTranslator, "English-French")
+        startModelDownload(frenchEnglishTranslator, "French-English")
+        startModelDownload(englishGermanTranslator, "English-German")
+        startModelDownload(germanEnglishTranslator, "German-English")
+    }
 
-        spanishEnglishTranslator?.downloadModelIfNeeded()
-            ?.addOnSuccessListener { 
-                Log.d(TAG, "Spanish-English model downloaded")
+    private fun startModelDownload(translator: Translator?, label: String) {
+        if (translator == null) {
+            return
+        }
+        pendingModelDownloads += 1
+        updateModelDownloadUi()
+        translator.downloadModelIfNeeded()
+            .addOnSuccessListener {
+                Log.d(TAG, "$label model downloaded")
+                pendingModelDownloads -= 1
+                updateModelDownloadUi()
                 updateStatusIfReady()
             }
-            ?.addOnFailureListener { exception -> 
-                Log.e(TAG, "Error downloading Spanish-English model", exception)
-                statusTextView.text = "Error downloading models"
+            .addOnFailureListener { exception ->
+                Log.e(TAG, "Error downloading $label model", exception)
+                pendingModelDownloads -= 1
+                updateModelDownloadUi()
+                statusTextView.text = getString(R.string.status_error_models)
+                addSystemMessage(getString(R.string.status_error_models))
             }
     }
 
     private fun updateStatusIfReady() {
-        if (voskModel != null) {
-            statusTextView.text = "Ready to listen"
+        updateModelDownloadUi()
+        if (pendingModelDownloads == 0 && pendingSpeechModelLoads == 0 && areSpeechModelsReady() && !isListening) {
+            statusTextView.text = getString(R.string.status_ready)
+        }
+        if (areSpeechModelsReady()) {
+            updateModelSizeText()
         }
     }
 
@@ -124,165 +885,933 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                 Log.e(TAG, "TTS language not supported or missing data")
             }
+            initializeVoiceSelectors()
         } else {
             Log.e(TAG, "TTS initialization failed")
         }
     }
 
-    private fun speakOut(text: String, language: Locale) {
-        tts?.language = language
+    private fun initializeVoiceSelectors() {
+        val voices = tts?.voices?.toList() ?: emptyList()
+        voiceOptionsByLanguage = mapOf(
+            "en" to buildVoiceOptions(voices, "en"),
+            "es" to buildVoiceOptions(voices, "es"),
+            "fr" to buildVoiceOptions(voices, "fr"),
+            "de" to buildVoiceOptions(voices, "de")
+        )
+        setupVoiceSpinner(voiceEnglishSpinner, "en", PREF_VOICE_EN)
+        setupVoiceSpinner(voiceSpanishSpinner, "es", PREF_VOICE_ES)
+        setupVoiceSpinner(voiceFrenchSpinner, "fr", PREF_VOICE_FR)
+        setupVoiceSpinner(voiceGermanSpinner, "de", PREF_VOICE_DE)
+    }
+
+    private fun buildVoiceOptions(voices: List<Voice>, languageCode: String): List<VoiceOption> {
+        val filtered = voices.filter { it.locale.language == languageCode }
+        if (filtered.isEmpty()) {
+            return listOf(VoiceOption(VOICE_DEFAULT, getString(R.string.voice_default)))
+        }
+        return filtered.map { voice ->
+            val label = "${voice.locale.displayName} • ${voice.name}"
+            VoiceOption(voice.name, label)
+        }
+    }
+
+    private fun setupVoiceSpinner(spinner: Spinner, languageCode: String, prefKey: String) {
+        val options = voiceOptionsByLanguage[languageCode] ?: listOf(VoiceOption(VOICE_DEFAULT, getString(R.string.voice_default)))
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, options.map { it.label })
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinner.adapter = adapter
+        spinner.isEnabled = options.size > 1
+
+        val savedVoice = preferences.getString(prefKey, null)
+        val selectedIndex = options.indexOfFirst { it.name == savedVoice }.takeIf { it >= 0 } ?: 0
+        isUpdatingVoiceSelection = true
+        spinner.setSelection(selectedIndex, false)
+        isUpdatingVoiceSelection = false
+        selectedVoiceByLanguage[languageCode] = options.getOrNull(selectedIndex)?.name ?: VOICE_DEFAULT
+
+        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                if (isUpdatingVoiceSelection) {
+                    return
+                }
+                if (position < 0 || position >= options.size) {
+                    return
+                }
+                val selectedVoice = options[position].name
+                selectedVoiceByLanguage[languageCode] = selectedVoice
+                preferences.edit().putString(prefKey, selectedVoice).apply()
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>) {
+                // No-op
+            }
+        }
+    }
+
+    private fun applyVoiceForLanguage(languageCode: String) {
+        tts?.language = localeForLanguage(languageCode)
+        val selectedVoice = selectedVoiceByLanguage[languageCode] ?: VOICE_DEFAULT
+        if (selectedVoice.isNotBlank() && selectedVoice != VOICE_DEFAULT) {
+            val voice = tts?.voices?.firstOrNull { it.name == selectedVoice }
+            if (voice != null) {
+                tts?.voice = voice
+            }
+        }
+    }
+
+    private fun speakOut(text: String, languageCode: String) {
+        applyVoiceForLanguage(languageCode)
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "")
     }
 
-    private fun initVoskModel() {
-        statusTextView.text = "Loading speech recognition model..."
-        StorageService.unpack(this, "model-en-us", "model",
+    private fun initVoskModels() {
+        statusTextView.text = getString(R.string.status_loading)
+        pendingSpeechModelLoads = 0
+        updateModelDownloadUi()
+        unpackSpeechModel(ENGLISH_MODEL_ASSET_PATH, ENGLISH_MODEL_STORAGE_DIR, "en")
+        unpackSpeechModel(SPANISH_MODEL_ASSET_PATH, SPANISH_MODEL_STORAGE_DIR, "es")
+        unpackSpeechModel(FRENCH_MODEL_ASSET_PATH, FRENCH_MODEL_STORAGE_DIR, "fr")
+        unpackSpeechModel(GERMAN_MODEL_ASSET_PATH, GERMAN_MODEL_STORAGE_DIR, "de")
+    }
+
+    private fun unpackSpeechModel(assetPath: String, destinationDir: String, languageCode: String) {
+        pendingSpeechModelLoads += 1
+        updateModelDownloadUi()
+        StorageService.unpack(this, assetPath, destinationDir,
             { unpackedModel ->
-                voskModel = unpackedModel
-                setUiState(true)
+                when (languageCode) {
+                    "en" -> englishVoskModel = unpackedModel
+                    "es" -> spanishVoskModel = unpackedModel
+                    "fr" -> frenchVoskModel = unpackedModel
+                    "de" -> germanVoskModel = unpackedModel
+                }
+                pendingSpeechModelLoads -= 1
+                updateModelDownloadUi()
+                updateListeningUi()
                 updateStatusIfReady()
             },
             { exception ->
-                setErrorState("Failed to unpack the Vosk model: " + exception.message)
+                pendingSpeechModelLoads -= 1
+                updateModelDownloadUi()
+                val languageLabel = getLanguageLabel(languageCode)
+                Log.e(TAG, "Failed to unpack $languageLabel model", exception)
+                setErrorState(getString(R.string.status_error_speech_model, languageLabel))
             })
+    }
+
+    private fun areSpeechModelsReady(): Boolean {
+        return englishVoskModel != null && spanishVoskModel != null && frenchVoskModel != null && germanVoskModel != null
+    }
+
+    private fun getSpeechModelForLanguage(languageCode: String): Model? {
+        return when (languageCode) {
+            "es" -> spanishVoskModel
+            "fr" -> frenchVoskModel
+            "de" -> germanVoskModel
+            else -> englishVoskModel
+        }
     }
 
     private fun toggleListening() {
         if (isListening) {
             stopListening()
         } else {
-            startListening(currentListeningLanguage)
+            startListening()
         }
     }
 
-    private fun startListening(languageCode: String) {
+    private fun startListening() {
+        val model = getSpeechModelForLanguage(currentListeningLanguage)
+        if (model == null) {
+            val languageLabel = getLanguageLabel(currentListeningLanguage)
+            setErrorState(getString(R.string.status_error_speech_model, languageLabel))
+            return
+        }
         try {
-            val rec = Recognizer(voskModel, 16000.0f)
-            speechService = SpeechService(rec, 16000.0f) { hypothesis ->
-                val recognizedText = hypothesis.result.replace("\n", "").replace("\r", "").trim()
-                if (recognizedText.isNotEmpty()) {
-                    runOnUiThread {
-                        resultTextView.append("\n\n${if (languageCode == "en") "🇺🇸" else "🇪🇸"} You: $recognizedText")
-                        identifyAndTranslate(recognizedText)
+            isListening = true
+            acquireWakeLock()
+            startAudioRecognition(model)
+            updateListeningUi()
+            statusTextView.text = getString(R.string.status_listening)
+            resetSilenceTimeout()
+        } catch (e: Exception) {
+            isListening = false
+            releaseWakeLock()
+            setErrorState(e.message ?: getString(R.string.status_error_occurred))
+        }
+    }
+
+    private fun startAudioRecognition(model: Model) {
+        stopAudioRecognition()
+        val sampleRate = 16000
+        val bufferSize = AudioRecord.getMinBufferSize(
+            sampleRate,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT
+        )
+        if (bufferSize == AudioRecord.ERROR || bufferSize == AudioRecord.ERROR_BAD_VALUE) {
+            throw IOException("Invalid audio buffer size")
+        }
+        val source = if (isNoiseReductionEnabled) {
+            MediaRecorder.AudioSource.VOICE_RECOGNITION
+        } else {
+            MediaRecorder.AudioSource.MIC
+        }
+        val recorder = AudioRecord(
+            source,
+            sampleRate,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT,
+            bufferSize
+        )
+        if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+            recorder.release()
+            throw IOException("Audio recorder init failed")
+        }
+        audioRecord = recorder
+        setupAudioEffects(recorder)
+        recognizer = Recognizer(model, sampleRate.toFloat())
+        recorder.startRecording()
+        val buffer = ByteArray(bufferSize)
+        recordingThread = Thread {
+            while (isListening && !Thread.currentThread().isInterrupted) {
+                val read = recorder.read(buffer, 0, buffer.size)
+                if (read <= 0) {
+                    continue
+                }
+                updateMicLevel(buffer, read)
+                val hasFinal = recognizer?.acceptWaveForm(buffer, read) ?: false
+                if (hasFinal) {
+                    val resultJson = recognizer?.result ?: ""
+                    val recognition = parseRecognitionResult(resultJson)
+                    if (recognition.text.isNotBlank()) {
+                        runOnUiThread { handleRecognitionResult(recognition) }
+                        break
                     }
                 }
             }
-            isListening = true
-            setUiState(false)
-            statusTextView.text = "Listening... Speak now"
-        } catch (e: IOException) {
-            setErrorState(e.message ?: "Error starting speech service")
+        }
+        recordingThread?.start()
+    }
+
+    private fun stopListening(updateStatus: Boolean = true) {
+        isListening = false
+        stopAudioRecognition()
+        silenceHandler.removeCallbacks(silenceTimeoutRunnable)
+        updateListeningUi()
+        if (updateStatus) {
+            statusTextView.text = getString(R.string.status_ready)
         }
     }
 
-    private fun stopListening() {
-        speechService?.cancel()
-        speechService?.shutdown()
-        speechService = null
-        isListening = false
-        setUiState(true)
-        statusTextView.text = "Ready to listen"
+    private fun stopAudioRecognition() {
+        recordingThread?.interrupt()
+        recordingThread = null
+        audioRecord?.let { recorder ->
+            try {
+                if (recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                    recorder.stop()
+                }
+            } catch (e: IllegalStateException) {
+                Log.w(TAG, "AudioRecord stop error", e)
+            }
+            recorder.release()
+        }
+        audioRecord = null
+        try {
+            recognizer?.close()
+        } catch (e: Exception) {
+            Log.w(TAG, "Recognizer close error", e)
+        }
+        recognizer = null
+        releaseAudioEffects()
+        releaseWakeLock()
+        micLevelMeter.progress = 0
+        micLevelMeter.secondaryProgress = 0
+        smoothedMicLevel = 0.0
+        peakMicLevel = 0.0
+        lastPeakTimestamp = 0L
+        micLevelValueText.text = getString(R.string.db_placeholder)
     }
 
-    private fun identifyAndTranslate(text: String) {
+    private fun handleRecognitionResult(result: RecognizedResult) {
+        val recognizedText = result.text
+        if (recognizedText.isBlank()) {
+            return
+        }
+        if (result.confidence != null && result.confidence < CONFIDENCE_THRESHOLD) {
+            handleLowConfidence(result)
+            return
+        }
+        stopListening(false)
+        statusTextView.text = getString(R.string.status_processing)
+        if (currentMode == ConversationMode.AUTO) {
+            identifyAndTranslate(recognizedText, result.confidence)
+        } else {
+            addUserMessage(recognizedText, currentListeningLanguage, result.confidence)
+            translateWithOverride(recognizedText, currentListeningLanguage)
+        }
+    }
+
+    private fun handleLowConfidence(result: RecognizedResult) {
+        stopListening(false)
+        addSystemMessage(getString(R.string.low_confidence_message))
+        statusTextView.text = getString(R.string.status_low_confidence)
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.low_confidence_title))
+            .setMessage(getString(R.string.low_confidence_prompt))
+            .setPositiveButton(getString(R.string.low_confidence_translate)) { _, _ ->
+                if (currentMode == ConversationMode.AUTO) {
+                    identifyAndTranslate(result.text, result.confidence)
+                } else {
+                    addUserMessage(result.text, currentListeningLanguage, result.confidence)
+                    translateWithOverride(result.text, currentListeningLanguage)
+                }
+            }
+            .setNegativeButton(getString(R.string.low_confidence_retry)) { _, _ ->
+                statusTextView.text = getString(R.string.status_ready)
+                startListening()
+            }
+            .show()
+    }
+
+    private fun parseRecognitionResult(resultJson: String): RecognizedResult {
+        return try {
+            val json = JSONObject(resultJson)
+            val text = json.optString("text", "").trim()
+            val resultsArray = json.optJSONArray("result")
+            val confidence = if (resultsArray != null && resultsArray.length() > 0) {
+                var sum = 0.0
+                var count = 0
+                for (i in 0 until resultsArray.length()) {
+                    val wordObj = resultsArray.optJSONObject(i)
+                    val conf = wordObj?.optDouble("conf", Double.NaN) ?: Double.NaN
+                    if (!conf.isNaN()) {
+                        sum += conf
+                        count += 1
+                    }
+                }
+                if (count > 0) sum / count else null
+            } else {
+                null
+            }
+            RecognizedResult(text, confidence)
+        } catch (e: Exception) {
+            RecognizedResult("", null)
+        }
+    }
+
+    private fun updateMicLevel(buffer: ByteArray, length: Int) {
+        val rms = AppUtils.calculateRms(buffer, length)
+        val rawLevel = (rms / MAX_PCM_AMPLITUDE * 100.0).coerceIn(0.0, 100.0)
+        smoothedMicLevel = if (smoothedMicLevel == 0.0) {
+            rawLevel
+        } else {
+            METER_SMOOTHING_ALPHA * rawLevel + (1 - METER_SMOOTHING_ALPHA) * smoothedMicLevel
+        }
+        val now = System.currentTimeMillis()
+        if (rawLevel > MIC_LEVEL_ACTIVITY_THRESHOLD) {
+            resetSilenceTimeout()
+        }
+        if (rawLevel >= peakMicLevel) {
+            peakMicLevel = rawLevel
+            lastPeakTimestamp = now
+        } else if (now - lastPeakTimestamp > PEAK_HOLD_MS) {
+            peakMicLevel = max(rawLevel, peakMicLevel * PEAK_DECAY_RATE)
+        }
+        val dbValue = if (rms <= 0.0) {
+            MIN_DB
+        } else {
+            (20 * log10(rms / MAX_PCM_AMPLITUDE)).coerceIn(MIN_DB, 0.0)
+        }
+        runOnUiThread {
+            micLevelMeter.progress = smoothedMicLevel.toInt()
+            micLevelMeter.secondaryProgress = peakMicLevel.toInt()
+            micLevelValueText.text = getString(R.string.db_format, dbValue)
+        }
+    }
+
+    private fun setupAudioEffects(recorder: AudioRecord) {
+        releaseAudioEffects()
+        if (!isNoiseReductionEnabled) {
+            return
+        }
+        val sessionId = recorder.audioSessionId
+        if (NoiseSuppressor.isAvailable()) {
+            noiseSuppressor = NoiseSuppressor.create(sessionId)
+            noiseSuppressor?.enabled = true
+        }
+        if (AcousticEchoCanceler.isAvailable()) {
+            echoCanceler = AcousticEchoCanceler.create(sessionId)
+            echoCanceler?.enabled = true
+        }
+        if (AutomaticGainControl.isAvailable()) {
+            automaticGainControl = AutomaticGainControl.create(sessionId)
+            automaticGainControl?.enabled = true
+        }
+    }
+
+    private fun releaseAudioEffects() {
+        noiseSuppressor?.release()
+        noiseSuppressor = null
+        echoCanceler?.release()
+        echoCanceler = null
+        automaticGainControl?.release()
+        automaticGainControl = null
+    }
+
+    private fun acquireWakeLock() {
+        if (wakeLock == null) {
+            val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$packageName:OfflineTranslator")
+            wakeLock?.setReferenceCounted(false)
+        }
+        if (wakeLock?.isHeld == false) {
+            wakeLock?.acquire(WAKE_LOCK_TIMEOUT_MS)
+        }
+    }
+
+    private fun releaseWakeLock() {
+        if (wakeLock?.isHeld == true) {
+            wakeLock?.release()
+        }
+    }
+
+    private fun resetSilenceTimeout() {
+        silenceHandler.removeCallbacks(silenceTimeoutRunnable)
+        if (!isSilenceTimeoutEnabled) {
+            return
+        }
+        silenceHandler.postDelayed(silenceTimeoutRunnable, silenceTimeoutMs)
+    }
+
+    private fun identifyAndTranslate(text: String, confidence: Double? = null) {
         languageIdentifier.identifyLanguage(text)
             .addOnSuccessListener { languageCode ->
-                Log.d(TAG, "Detected language: $languageCode")
-                if (languageCode == "en") {
-                    englishSpanishTranslator?.translate(text)
-                        ?.addOnSuccessListener { translatedText ->
-                            runOnUiThread {
-                                resultTextView.append("\n🇪🇸 Translation: $translatedText")
-                                speakOut(translatedText, Locale("es"))
-                                currentListeningLanguage = "es"
-                                statusTextView.text = "Speaking translation... Please wait"
-                                // Restart listening after a delay
-                                toggleListeningButton.postDelayed({ 
-                                    if (!isListening) {
-                                        startListening(currentListeningLanguage)
-                                    }
-                                }, 3000)
-                            }
-                        }
-                        ?.addOnFailureListener { exception -> 
-                            Log.e(TAG, "Error translating English to Spanish", exception)
-                            runOnUiThread { statusTextView.text = "Translation error" }
-                        }
-                } else if (languageCode == "es") {
-                    spanishEnglishTranslator?.translate(text)
-                        ?.addOnSuccessListener { translatedText ->
-                            runOnUiThread {
-                                resultTextView.append("\n🇺🇸 Translation: $translatedText")
-                                speakOut(translatedText, Locale.US)
-                                currentListeningLanguage = "en"
-                                statusTextView.text = "Speaking translation... Please wait"
-                                // Restart listening after a delay
-                                toggleListeningButton.postDelayed({ 
-                                    if (!isListening) {
-                                        startListening(currentListeningLanguage)
-                                    }
-                                }, 3000)
-                            }
-                        }
-                        ?.addOnFailureListener { exception -> 
-                            Log.e(TAG, "Error translating Spanish to English", exception)
-                            runOnUiThread { statusTextView.text = "Translation error" }
-                        }
+                val normalizedCode = languageCode.lowercase(Locale.US)
+                Log.d(TAG, "Detected language: $normalizedCode")
+                if (normalizedCode == "en" || normalizedCode == "es") {
+                    addUserMessage(text, normalizedCode, confidence)
+                    val targetLanguage = if (normalizedCode == "en") "es" else "en"
+                    translateText(text, normalizedCode, targetLanguage)
                 } else {
-                    runOnUiThread {
-                        resultTextView.append("\n⚠️ Unsupported language: $languageCode")
-                        statusTextView.text = "Unsupported language detected"
-                    }
+                    addSystemMessage(getString(R.string.message_unsupported_language, normalizedCode))
+                    statusTextView.text = getString(R.string.status_unsupported_language)
                 }
             }
-            .addOnFailureListener { exception -> 
+            .addOnFailureListener { exception ->
                 Log.e(TAG, "Error identifying language", exception)
-                runOnUiThread { statusTextView.text = "Language detection error" }
+                runOnUiThread { statusTextView.text = getString(R.string.status_language_error) }
             }
     }
 
-    private fun setUiState(enabled: Boolean) {
-        toggleListeningButton.isEnabled = enabled && voskModel != null
+    private fun translateWithOverride(text: String, sourceLanguage: String) {
+        val targetLanguage = getTargetLanguageForManualMode(sourceLanguage)
+        if (targetLanguage == null) {
+            addSystemMessage(getString(R.string.message_unsupported_language, sourceLanguage))
+            statusTextView.text = getString(R.string.status_unsupported_language)
+            return
+        }
+        translateText(text, sourceLanguage, targetLanguage)
+    }
+
+    private fun translateText(text: String, sourceLanguage: String, targetLanguage: String) {
+        val translator = getTranslator(sourceLanguage, targetLanguage)
+        if (translator == null) {
+            addSystemMessage(getString(R.string.message_unsupported_language, sourceLanguage))
+            statusTextView.text = getString(R.string.status_unsupported_language)
+            return
+        }
+        statusTextView.text = getString(R.string.status_translating)
+        translator.translate(text)
+            .addOnSuccessListener { translatedText ->
+                runOnUiThread {
+                    addTranslationMessage(translatedText, targetLanguage)
+                    speakOut(translatedText, targetLanguage)
+                    currentListeningLanguage = targetLanguage
+                    syncStartLanguageSelection()
+                    statusTextView.text = getString(R.string.status_speaking)
+                    if (!isPushToTalkEnabled) {
+                        toggleListeningButton.postDelayed({
+                            if (!isListening) {
+                                startListening()
+                            }
+                        }, RESTART_DELAY_MS)
+                    }
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.e(TAG, "Error translating $sourceLanguage to $targetLanguage", exception)
+                runOnUiThread { statusTextView.text = getString(R.string.status_translation_error) }
+            }
+    }
+
+    private fun getTranslator(sourceLanguage: String, targetLanguage: String): Translator? {
+        return when {
+            sourceLanguage == "en" && targetLanguage == "es" -> englishSpanishTranslator
+            sourceLanguage == "es" && targetLanguage == "en" -> spanishEnglishTranslator
+            sourceLanguage == "en" && targetLanguage == "fr" -> englishFrenchTranslator
+            sourceLanguage == "fr" && targetLanguage == "en" -> frenchEnglishTranslator
+            sourceLanguage == "en" && targetLanguage == "de" -> englishGermanTranslator
+            sourceLanguage == "de" && targetLanguage == "en" -> germanEnglishTranslator
+            else -> null
+        }
+    }
+
+    private fun getTargetLanguageForManualMode(sourceLanguage: String): String? {
+        return when (currentMode) {
+            ConversationMode.ENGLISH_SPANISH -> if (sourceLanguage == "en") "es" else if (sourceLanguage == "es") "en" else null
+            ConversationMode.ENGLISH_FRENCH -> if (sourceLanguage == "en") "fr" else if (sourceLanguage == "fr") "en" else null
+            ConversationMode.ENGLISH_GERMAN -> if (sourceLanguage == "en") "de" else if (sourceLanguage == "de") "en" else null
+            ConversationMode.AUTO -> null
+        }
+    }
+
+    private fun localeForLanguage(languageCode: String): Locale {
+        return when (languageCode) {
+            "es" -> Locale("es")
+            "fr" -> Locale.FRENCH
+            "de" -> Locale.GERMAN
+            else -> Locale.US
+        }
+    }
+
+    private fun cycleLanguageMode() {
+        currentMode = when (currentMode) {
+            ConversationMode.AUTO -> ConversationMode.ENGLISH_SPANISH
+            ConversationMode.ENGLISH_SPANISH -> ConversationMode.ENGLISH_FRENCH
+            ConversationMode.ENGLISH_FRENCH -> ConversationMode.ENGLISH_GERMAN
+            ConversationMode.ENGLISH_GERMAN -> ConversationMode.AUTO
+        }
+        currentListeningLanguage = "en"
         if (isListening) {
-            toggleListeningButton.text = "Stop Listening"
+            stopListening()
+        }
+        updateModeUi()
+        statusTextView.text = getString(R.string.status_ready)
+    }
+
+    private fun updateModeUi() {
+        val subtitleRes = when (currentMode) {
+            ConversationMode.AUTO -> R.string.subtitle_auto
+            ConversationMode.ENGLISH_SPANISH -> R.string.subtitle_en_es
+            ConversationMode.ENGLISH_FRENCH -> R.string.subtitle_en_fr
+            ConversationMode.ENGLISH_GERMAN -> R.string.subtitle_en_de
+        }
+        val toggleRes = when (currentMode) {
+            ConversationMode.AUTO -> R.string.language_toggle_auto
+            ConversationMode.ENGLISH_SPANISH -> R.string.language_toggle_en_es
+            ConversationMode.ENGLISH_FRENCH -> R.string.language_toggle_en_fr
+            ConversationMode.ENGLISH_GERMAN -> R.string.language_toggle_en_de
+        }
+        subtitleTextView.text = getString(subtitleRes)
+        languageToggleButton.text = getString(toggleRes)
+        updateStartLanguageOptions()
+        updateSwapLanguageUi()
+    }
+
+    private fun updateSwapLanguageUi() {
+        swapLanguageButton.isEnabled = !isListening && areSpeechModelsReady() && startLanguageOptions.size > 1
+    }
+
+    private fun updateListeningUi() {
+        val modelsReady = areSpeechModelsReady()
+        toggleListeningButton.isEnabled = modelsReady
+        if (isListening) {
+            toggleListeningButton.text = getString(R.string.stop_listening)
             toggleListeningButton.setIconResource(R.drawable.ic_clear)
         } else {
-            toggleListeningButton.text = "Start Listening"
+            toggleListeningButton.text = getString(R.string.start_listening)
             toggleListeningButton.setIconResource(R.drawable.ic_mic)
         }
+        val indicatorColor = if (isListening) R.color.listening_active else R.color.listening_idle
+        listeningIndicatorIcon.setColorFilter(ContextCompat.getColor(this, indicatorColor))
+        startLanguageSpinner.isEnabled = !isListening && modelsReady
+        speakerSpinner.isEnabled = !isListening
+        noiseReductionSwitch.isEnabled = !isListening
+        pushToTalkSwitch.isEnabled = !isListening
+        val voiceEnabled = !isListening
+        voiceEnglishSpinner.isEnabled = voiceEnabled
+        voiceSpanishSpinner.isEnabled = voiceEnabled
+        voiceFrenchSpinner.isEnabled = voiceEnabled
+        voiceGermanSpinner.isEnabled = voiceEnabled
+        micLevelMeter.visibility = View.VISIBLE
+        micLevelValueText.visibility = View.VISIBLE
+        if (!isListening) {
+            micLevelMeter.progress = 0
+            micLevelMeter.secondaryProgress = 0
+            micLevelValueText.text = getString(R.string.db_placeholder)
+        }
+        updateSwapLanguageUi()
+    }
+
+    private fun addUserMessage(text: String, languageCode: String, confidence: Double? = null) {
+        val speakerLabel = speakerOptions.firstOrNull { it.id == selectedSpeakerId }?.label ?: getString(R.string.speaker_a)
+        val message = "${getLanguageFlag(languageCode)} ${getString(R.string.message_speaker, speakerLabel, text)}"
+        addMessage(message, MessageType.USER, confidence)
+    }
+
+    private fun addTranslationMessage(text: String, languageCode: String) {
+        val message = "${getLanguageFlag(languageCode)} ${getString(R.string.message_translation, text)}"
+        addMessage(message, MessageType.TRANSLATION, null)
+    }
+
+    private fun addSystemMessage(text: String) {
+        addMessage(text, MessageType.SYSTEM, null)
+    }
+
+    private fun addMessage(text: String, type: MessageType, confidence: Double? = null) {
+        conversationMessages.add(ConversationMessage(text, type, System.currentTimeMillis(), confidence))
+        applySearchFilter(currentSearchQuery)
+    }
+
+    private fun updateEmptyState() {
+        val isSearching = currentSearchQuery.isNotBlank()
+        val isEmpty = filteredMessages.isEmpty()
+        emptyStateTextView.text = when {
+            showFavoritesOnly && isSearching -> getString(R.string.favorites_search_empty_state)
+            showFavoritesOnly -> getString(R.string.favorites_empty_state)
+            isSearching -> getString(R.string.search_empty_state)
+            else -> getString(R.string.empty_state)
+        }
+        if (isEmpty) {
+            emptyStateTextView.visibility = View.VISIBLE
+            conversationRecyclerView.visibility = View.GONE
+        } else {
+            emptyStateTextView.visibility = View.GONE
+            conversationRecyclerView.visibility = View.VISIBLE
+        }
+    }
+
+    private fun getLanguageFlag(languageCode: String): String {
+        return when (languageCode) {
+            "en" -> "🇺🇸"
+            "es" -> "🇪🇸"
+            "fr" -> "🇫🇷"
+            "de" -> "🇩🇪"
+            else -> "🏳️"
+        }
+    }
+
+    private fun getLanguageLabel(languageCode: String): String {
+        return when (languageCode) {
+            "es" -> getString(R.string.language_label_spanish)
+            "fr" -> getString(R.string.language_label_french)
+            "de" -> getString(R.string.language_label_german)
+            else -> getString(R.string.language_label_english)
+        }
+    }
+
+    private fun showExportOptions() {
+        if (conversationMessages.isEmpty()) {
+            Toast.makeText(this, getString(R.string.export_empty), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val options = arrayOf(
+            getString(R.string.export_option_text),
+            getString(R.string.export_option_pdf),
+            getString(R.string.export_option_csv)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.export_dialog_title))
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> exportConversation(ExportType.TEXT)
+                    1 -> exportConversation(ExportType.PDF)
+                    2 -> exportConversation(ExportType.CSV)
+                }
+            }
+            .show()
+    }
+
+    private fun exportConversation(exportType: ExportType) {
+        if (conversationMessages.isEmpty()) {
+            Toast.makeText(this, getString(R.string.export_empty), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+        val transcript = conversationMessages.joinToString("\n") { it.text }
+        when (exportType) {
+            ExportType.TEXT -> {
+                val fileName = "conversation_${timestamp}.txt"
+                val file = File(filesDir, fileName)
+                file.writeText(transcript)
+                addExportHistoryEntry(fileName)
+                shareExportFile(file, "text/plain", fileName)
+            }
+            ExportType.PDF -> {
+                val fileName = "conversation_${timestamp}.pdf"
+                val file = File(filesDir, fileName)
+                try {
+                    createPdfFromText(transcript, file)
+                    addExportHistoryEntry(fileName)
+                    shareExportFile(file, "application/pdf", fileName)
+                } catch (e: Exception) {
+                    showToast(getString(R.string.export_failed))
+                    return
+                }
+            }
+            ExportType.CSV -> {
+                val fileName = "conversation_${timestamp}.csv"
+                val file = File(filesDir, fileName)
+                try {
+                    createCsvFile(file)
+                    addExportHistoryEntry(fileName)
+                    shareExportFile(file, "text/csv", fileName)
+                } catch (e: Exception) {
+                    showToast(getString(R.string.export_failed))
+                    return
+                }
+            }
+        }
+        Toast.makeText(this, getString(R.string.export_ready), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun shareExportFile(file: File, mimeType: String, fileName: String) {
+        val uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = mimeType
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, fileName)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(shareIntent, getString(R.string.export_conversation)))
+    }
+
+    private fun createCsvFile(file: File) {
+        val header = "timestamp,type,text,confidence,favorite\n"
+        val body = conversationMessages.joinToString("\n") { message ->
+            val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(message.timestamp))
+            val confidence = message.confidence?.let { String.format(Locale.US, "%.2f", it) } ?: ""
+            val favorite = if (message.isFavorite) "yes" else "no"
+            listOf(time, message.type.name, AppUtils.escapeCsv(message.text), confidence, favorite).joinToString(",")
+        }
+        file.writeText(header + body)
+    }
+
+    private fun createPdfFromText(text: String, file: File) {
+        val pdfDocument = PdfDocument()
+        val paint = Paint().apply {
+            textSize = 12f
+            typeface = Typeface.MONOSPACE
+        }
+        val pageWidth = 595
+        val pageHeight = 842
+        val margin = 40
+        val maxWidth = pageWidth - margin * 2
+        var pageNumber = 1
+        var page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
+        var canvas = page.canvas
+        var y = margin.toFloat()
+        val lineHeight = paint.fontSpacing
+        for (line in text.split("\n")) {
+            val wrappedLines = wrapLine(line, paint, maxWidth.toFloat())
+            for (wrapped in wrappedLines) {
+                if (y + lineHeight > pageHeight - margin) {
+                    pdfDocument.finishPage(page)
+                    pageNumber += 1
+                    page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
+                    canvas = page.canvas
+                    y = margin.toFloat()
+                }
+                canvas.drawText(wrapped, margin.toFloat(), y, paint)
+                y += lineHeight
+            }
+        }
+        pdfDocument.finishPage(page)
+        file.outputStream().use { output -> pdfDocument.writeTo(output) }
+        pdfDocument.close()
+    }
+
+    private fun wrapLine(text: String, paint: Paint, maxWidth: Float): List<String> {
+        if (text.isEmpty()) {
+            return listOf("")
+        }
+        val lines = mutableListOf<String>()
+        var start = 0
+        while (start < text.length) {
+            val count = paint.breakText(text, start, text.length, true, maxWidth, null)
+            lines.add(text.substring(start, start + count))
+            start += count
+        }
+        return lines
     }
 
     private fun setErrorState(message: String) {
-        resultTextView.text = "Error: $message"
-        statusTextView.text = "Error occurred"
+        addSystemMessage(getString(R.string.error_prefix, message))
+        statusTextView.text = getString(R.string.status_error_occurred)
         toggleListeningButton.isEnabled = false
+        isListening = false
+        releaseWakeLock()
+        updateListeningUi()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == RECORD_AUDIO_PERMISSION_CODE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                initVoskModel()
+                initVoskModels()
             } else {
-                setErrorState("Record audio permission denied")
+                setErrorState(getString(R.string.permission_denied))
             }
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        speechService?.cancel()
-        speechService?.shutdown()
-        voskModel?.close()
+        silenceHandler.removeCallbacks(silenceTimeoutRunnable)
+        stopAudioRecognition()
+        englishVoskModel?.close()
+        spanishVoskModel?.close()
+        frenchVoskModel?.close()
+        germanVoskModel?.close()
         tts?.stop()
         tts?.shutdown()
         englishSpanishTranslator?.close()
         spanishEnglishTranslator?.close()
+        englishFrenchTranslator?.close()
+        frenchEnglishTranslator?.close()
+        englishGermanTranslator?.close()
+        germanEnglishTranslator?.close()
+    }
+
+    private data class ModelEntry(
+        val name: String,
+        val detail: String,
+        val actionLabel: String,
+        val action: () -> Unit
+    )
+
+    private data class LanguageOption(val code: String, val label: String)
+
+    private data class SpeakerOption(val id: String, val label: String)
+
+    private data class VoiceOption(val name: String, val label: String)
+
+    private data class RecognizedResult(val text: String, val confidence: Double?)
+
+    private data class ConversationMessage(
+        val text: String,
+        val type: MessageType,
+        val timestamp: Long,
+        val confidence: Double? = null,
+        var isFavorite: Boolean = false
+    )
+
+    private enum class ExportType {
+        TEXT,
+        PDF,
+        CSV
+    }
+
+    private enum class MessageType {
+        USER,
+        TRANSLATION,
+        SYSTEM
+    }
+
+    private enum class ConversationMode {
+        AUTO,
+        ENGLISH_SPANISH,
+        ENGLISH_FRENCH,
+        ENGLISH_GERMAN
+    }
+
+    private inner class ConversationAdapter(
+        private val items: List<ConversationMessage>
+    ) : RecyclerView.Adapter<ConversationAdapter.MessageViewHolder>() {
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_message, parent, false)
+            return MessageViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
+            val item = items[position]
+            holder.messageText.text = item.text
+            holder.messageTime.text = formatTimestamp(item.timestamp)
+            if (item.type == MessageType.USER && item.confidence != null) {
+                holder.messageConfidence.visibility = View.VISIBLE
+                holder.messageConfidence.text = getString(R.string.confidence_format, item.confidence * 100)
+            } else {
+                holder.messageConfidence.visibility = View.GONE
+                holder.messageConfidence.text = ""
+            }
+            val backgroundRes = when (item.type) {
+                MessageType.USER -> R.drawable.bg_message_user
+                MessageType.TRANSLATION -> R.drawable.bg_message_translation
+                MessageType.SYSTEM -> R.drawable.bg_message_system
+            }
+            holder.messageText.setBackgroundResource(backgroundRes)
+            val textColorRes = when (item.type) {
+                MessageType.USER -> R.color.text_color
+                MessageType.TRANSLATION -> R.color.text_color
+                MessageType.SYSTEM -> R.color.text_secondary
+            }
+            holder.messageText.setTextColor(ContextCompat.getColor(holder.itemView.context, textColorRes))
+            val starIcon = if (item.isFavorite) R.drawable.ic_star_filled else R.drawable.ic_star_outline
+            holder.favoriteButton.setImageResource(starIcon)
+            holder.favoriteButton.setOnClickListener {
+                item.isFavorite = !item.isFavorite
+                applySearchFilter(currentSearchQuery)
+            }
+        }
+
+        override fun getItemCount(): Int = items.size
+
+        inner class MessageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            val messageText: TextView = view.findViewById(R.id.message_text)
+            val messageTime: TextView = view.findViewById(R.id.message_time)
+            val messageConfidence: TextView = view.findViewById(R.id.message_confidence)
+            val favoriteButton: ImageButton = view.findViewById(R.id.favorite_button)
+        }
     }
 
     companion object {
         private const val RECORD_AUDIO_PERMISSION_CODE = 1
         private const val TAG = "OfflineTranslatorApp"
+        private const val DEFAULT_SILENCE_TIMEOUT_MS = 1500L
+        private const val MIN_SILENCE_TIMEOUT_MS = 500L
+        private const val MAX_SILENCE_TIMEOUT_MS = 4000L
+        private const val SILENCE_STEP_MS = 250L
+        private const val RESTART_DELAY_MS = 3000L
+        private const val ENGLISH_MODEL_ASSET_PATH = "model-en"
+        private const val SPANISH_MODEL_ASSET_PATH = "model-es"
+        private const val FRENCH_MODEL_ASSET_PATH = "model-fr"
+        private const val GERMAN_MODEL_ASSET_PATH = "model-de"
+        private const val ENGLISH_MODEL_STORAGE_DIR = "model-en"
+        private const val SPANISH_MODEL_STORAGE_DIR = "model-es"
+        private const val FRENCH_MODEL_STORAGE_DIR = "model-fr"
+        private const val GERMAN_MODEL_STORAGE_DIR = "model-de"
+        private const val PREFS_NAME = "offline_translator_prefs"
+        private const val PREF_SPEAKER = "pref_speaker"
+        private const val PREF_SILENCE_TIMEOUT_MS = "pref_silence_timeout_ms"
+        private const val PREF_SILENCE_ENABLED = "pref_silence_enabled"
+        private const val PREF_NOISE_REDUCTION = "pref_noise_reduction"
+        private const val PREF_PUSH_TO_TALK = "pref_push_to_talk"
+        private const val PREF_SHOW_FAVORITES = "pref_show_favorites"
+        private const val PREF_MODEL_MANAGER_ADVANCED = "pref_model_manager_advanced"
+        private const val PREF_EXPORT_HISTORY = "pref_export_history"
+        private const val PREF_ONBOARDING_SHOWN = "pref_onboarding_shown"
+        private const val PREF_VOICE_EN = "pref_voice_en"
+        private const val PREF_VOICE_ES = "pref_voice_es"
+        private const val PREF_VOICE_FR = "pref_voice_fr"
+        private const val PREF_VOICE_DE = "pref_voice_de"
+        private const val EXPORT_HISTORY_SEPARATOR = "||"
+        private const val MAX_EXPORT_HISTORY = 10
+        private const val MAX_PCM_AMPLITUDE = 32768.0
+        private const val MIC_LEVEL_ACTIVITY_THRESHOLD = 6.0
+        private const val METER_SMOOTHING_ALPHA = 0.2
+        private const val PEAK_HOLD_MS = 2000L
+        private const val PEAK_DECAY_RATE = 0.9
+        private const val MIN_DB = -60.0
+        private const val CONFIDENCE_THRESHOLD = 0.7
+        private const val WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
+        private const val VOICE_DEFAULT = "default"
+        private const val SPEAKER_A = "A"
+        private const val SPEAKER_B = "B"
     }
 }
 

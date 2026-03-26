@@ -8,5 +8,10 @@
     <color name="text_color">#212121</color>
     <color name="text_secondary">#757575</color>
     <color name="accent_color">#FF5722</color>
+    <color name="listening_active">#4CAF50</color>
+    <color name="listening_idle">#B0BEC5</color>
+    <color name="bubble_user">#E3F2FD</color>
+    <color name="bubble_translation">#FFF3E0</color>
+    <color name="bubble_system">#ECEFF1</color>
 </resources>
 

@@ -65,13 +65,17 @@ C:\AndroidProjects\OfflineTranslator  (Windows)
 4. Click "OK"
 5. Wait for the project to sync (this may take several minutes)
 
-### 3. Download Vosk Model
-The Vosk speech recognition model needs to be downloaded and placed in the correct location:
+### 3. Verify Vosk Models (English, Spanish, French, German)
+The English, Spanish, French, and German Vosk models are included in the repository at:
+- `app/src/main/assets/model-en/`
+- `app/src/main/assets/model-es/`
+- `app/src/main/assets/model-fr/`
+- `app/src/main/assets/model-de/`
 
-1. Download the English model from: https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip
-2. Extract the ZIP file
-3. Copy the extracted folder to: `app/src/main/assets/model/`
-4. The final path should be: `app/src/main/assets/model/vosk-model-en-us-0.22/`
+If you want to replace them:
+1. Download updated models from https://alphacephei.com/vosk/models
+2. Extract the ZIP files
+3. Replace the contents of `model-en/`, `model-es/`, `model-fr/`, and `model-de/` accordingly
 
 ### 4. Sync Project Dependencies
 1. In Android Studio, click "Sync Now" if prompted
@@ -215,8 +219,8 @@ org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m
 ### Custom Model Configuration
 To use different Vosk models:
 1. Download desired model from Vosk website
-2. Replace model in `app/src/main/assets/model/`
-3. Update model name in MainActivity.kt if necessary
+2. Replace model in `app/src/main/assets/model-en/`, `model-es/`, `model-fr/`, or `model-de/`
+3. Update model path constants in MainActivity.kt if necessary
 
 ### Build Variants
 The project supports debug and release builds:

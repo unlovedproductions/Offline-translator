@@ -9,7 +9,7 @@ buildscript {
     }
 }
 val defaultTargetSdkVersion by extra(36)
-val compileSdkVersion by extra(34)
+val compileSdkVersion by extra(36)
 
 allprojects {
     repositories {
