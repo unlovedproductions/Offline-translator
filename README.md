@@ -5,12 +5,14 @@ A conversational English-Spanish translation Android application that works comp
 
 ## Features
 
-- **Offline Speech Recognition**: Uses Vosk speech recognition library for offline voice input
-- **Offline Translation**: Utilizes Google ML Kit Translation API for offline English-Spanish translation
-- **Text-to-Speech**: Built-in Android TTS for speaking translations
-- **Language Detection**: Automatic detection of spoken language (English or Spanish)
-- **Conversational Flow**: Automatically switches between languages for natural conversation
-- **Modern UI**: Material Design 3 interface with intuitive controls
+- **Offline Speech Recognition**: Uses Vosk speech recognition library for high-accuracy offline voice input.
+- **Offline Translation**: Utilizes Google ML Kit Translation API for high-quality English-Spanish translation.
+- **Text-to-Speech**: Integrated Android TTS for natural-sounding spoken translations.
+- **Language Detection**: Intelligent automatic detection of spoken language.
+- **Conversational Flow**: Optimized for natural back-and-forth communication.
+- **Modern UI**: Clean Material Design 3 interface with intuitive conversational controls.
+
+For a detailed list of supported languages and technical capabilities, see the [Feature Overview](FEATURE_OVERVIEW.md).
 
 ## Architecture
 
@@ -185,19 +187,11 @@ Potential improvements for future versions:
 4. **Voice Training**: Improve recognition accuracy for specific users
 5. **Offline Language Packs**: Pre-bundled language models
 
-## Contributing
+## Support
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+For support, contact support@unlovedproductions.com
 
 ## License
 
-This project is open source and available under the MIT License.
-
-## Support
-
-For issues, questions, or contributions, please refer to the project repository or contact the development team.
+© unlovedproductions. All rights reserved. This application is proprietary software. Unauthorized copying, distribution, or modification is strictly prohibited.
 
