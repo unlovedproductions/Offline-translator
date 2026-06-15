@@ -1,8 +1,8 @@
 
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Offline Translator</string>
-    <string name="app_title">Offline Translator</string>
+    <string name="app_name">Puente</string>
+    <string name="app_title">Puente</string>
     <string name="subtitle_auto">Auto Conversation (English ↔ Spanish)</string>
     <string name="subtitle_en_es">English ↔ Spanish Conversation</string>
     <string name="subtitle_en_fr">English ↔ French Conversation</string>
@@ -116,7 +116,7 @@
     <string name="model_manager_size_unknown">Size unknown</string>
     <string name="model_manager_simple_mode">Simple mode</string>
     <string name="model_manager_advanced_mode">Advanced mode</string>
-    <string name="onboarding_title">Welcome to Offline Translator</string>
+    <string name="onboarding_title">Welcome to Puente</string>
     <string name="onboarding_message">1) Tap Start Listening to begin.
 2) Use Language Mode and Start language to pick direction.
 3) Export or review history anytime.</string>

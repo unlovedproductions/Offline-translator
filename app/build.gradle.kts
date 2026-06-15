@@ -8,14 +8,14 @@ android {
     compileSdkVersion(rootProject.extra["compileSdkVersion"] as Int)
 
     defaultConfig {
-        applicationId = "Truly.Offline.Translator"
+        applicationId = "com.puente.offline.translator"
         minSdk = 21
         targetSdkVersion(rootProject.extra["defaultTargetSdkVersion"] as Int)
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        applicationIdSuffix = "TOT"
+        applicationIdSuffix = "PUENTE"
     }
 
     buildTypes {

@@ -1,6 +1,6 @@
-# Offline Translator Setup Guide
+# Puente Setup Guide
 
-This guide provides step-by-step instructions for setting up and building the Offline Translator Android application.
+This guide provides step-by-step instructions for setting up and building the Puente Android application.
 
 ## System Requirements
 
@@ -54,14 +54,14 @@ This guide provides step-by-step instructions for setting up and building the Of
 ### 1. Download Project Files
 Extract the provided project files to a directory on your computer, for example:
 ```
-C:\AndroidProjects\OfflineTranslator  (Windows)
-~/AndroidProjects/OfflineTranslator   (macOS/Linux)
+C:\AndroidProjects\Puente  (Windows)
+~/AndroidProjects/Puente   (macOS/Linux)
 ```
 
 ### 2. Open Project in Android Studio
 1. Launch Android Studio
 2. Click "Open an Existing Project"
-3. Navigate to the OfflineTranslator directory
+3. Navigate to the Puente directory
 4. Click "OK"
 5. Wait for the project to sync (this may take several minutes)
 
@@ -183,7 +183,7 @@ org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m
 ### Runtime Issues
 
 **Microphone Permission Denied:**
-1. Go to device Settings → Apps → OfflineTranslator → Permissions
+1. Go to device Settings → Apps → Puente → Permissions
 2. Enable Microphone permission
 3. Restart the app
 
@@ -245,5 +245,5 @@ For release builds, configure signing:
 - GitHub Issues: Report bugs and feature requests
 - Android Developer Community: https://developer.android.com/community
 
-This setup guide should help you successfully build and deploy the Offline Translator application. If you encounter any issues not covered here, please refer to the troubleshooting section or seek community support.
+This setup guide should help you successfully build and deploy the Puente application. If you encounter any issues not covered here, please refer to the troubleshooting section or seek community support.
 

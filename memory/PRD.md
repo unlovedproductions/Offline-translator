@@ -1,4 +1,4 @@
-# Offline Translator App PRD
+# Puente App PRD
 
 ## Original Problem Statement
 - Review the repo and provide summary

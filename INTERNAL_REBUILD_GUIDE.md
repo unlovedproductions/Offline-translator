@@ -1,4 +1,4 @@
-# Internal Rebuild Guide — Offline Translator Android App
+# Internal Rebuild Guide — Puente Android App
 
 This document enables full reconstruction of the project if the repo is corrupted or deleted. **Do not rebuild now** — this is a blueprint for rebuilding.
 

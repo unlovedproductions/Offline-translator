@@ -1,6 +1,6 @@
-# Feature Overview - Offline Translator
+# Feature Overview - Puente
 
-Offline Translator is a professional-grade Android application designed for seamless, real-time conversational translation without requiring an active internet connection. By leveraging advanced on-device machine learning, the application ensures privacy, speed, and reliability in any environment.
+Puente is a professional-grade Android application designed for seamless, real-time conversational translation without requiring an active internet connection. By leveraging advanced on-device machine learning, the application ensures privacy, speed, and reliability in any environment.
 
 ## Key Features
 

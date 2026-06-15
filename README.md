@@ -1,4 +1,4 @@
-# Offline Translator Android App
+# Puente Android App
 
 A conversational English-Spanish translation Android application that works completely offline. The app uses speech recognition to detect spoken language, translates it to the target language, and speaks the translation aloud, creating a seamless conversation experience.
 
@@ -44,13 +44,13 @@ The application is built using the following components:
 ### 1. Clone the Repository
 ```bash
 git clone <repository-url>
-cd OfflineTranslator
+cd Puente
 ```
 
 ### 2. Open in Android Studio
 1. Open Android Studio
 2. Select "Open an Existing Project"
-3. Navigate to the OfflineTranslator directory
+3. Navigate to the Puente directory
 4. Click "OK"
 
 ### 3. Sync Project
@@ -110,7 +110,7 @@ Android Studio will automatically sync the project and download dependencies.
 ## File Structure
 
 ```
-OfflineTranslator/
+Puente/
 ├── app/
 │   ├── src/
 │   │   ├── main/
