@@ -1,0 +1,47 @@
+name: Build Debug APK and Run Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x ./Offline-translator/gradlew
+
+    - name: Build Debug APK
+      run: ./Offline-translator/gradlew assembleDebug
+
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: debug-apk
+        path: Offline-translator/app/build/outputs/apk/debug/app-debug.apk
+
+    - name: Run Android Tests
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: 30
+        target: default
+        arch: x86_64
+        profile: Nexus 6
+        emulator-build: 'latest'
+        disk-size: '2000M'
+        script: |
+          ./Offline-translator/gradlew connectedCheck
