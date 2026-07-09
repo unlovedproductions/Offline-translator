@@ -611,8 +611,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             if (isListening) {
                 stopListening()
             }
-            if (isInstalled && dir != null) {
-                deleteDirectory(dir)
+            if (isInstalled) {
+                deleteDirectory(dir!!)
                 clearVoskModelReference(languageCode)
                 updateStatusIfReady()
                 updateModelSizeText()
@@ -1370,7 +1370,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun localeForLanguage(languageCode: String): Locale {
         return when (languageCode) {
-            "es" -> Locale("es")
+            "es" -> Locale.forLanguageTag("es")
             "fr" -> Locale.FRENCH
             "de" -> Locale.GERMAN
             else -> Locale.US

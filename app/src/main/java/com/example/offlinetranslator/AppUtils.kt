@@ -32,7 +32,7 @@ object AppUtils {
     }
 
     fun escapeCsv(text: String): String {
-        val escaped = text.replace(""", """")
-        return ""$escaped""
+        val escaped = text.replace("\"", "\"\"")
+        return "\"$escaped\""
     }
 }
