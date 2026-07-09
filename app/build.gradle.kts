@@ -1,16 +1,15 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
 }
 
 android {
     namespace = "com.example.offlinetranslator"
-    compileSdkVersion(rootProject.extra["compileSdkVersion"] as Int)
+    compileSdk = rootProject.extra["compileSdkVersion"] as Int
 
     defaultConfig {
         applicationId = "com.puente.offline.translator"
         minSdk = 21
-        targetSdkVersion(rootProject.extra["defaultTargetSdkVersion"] as Int)
+        targetSdk = rootProject.extra["defaultTargetSdkVersion"] as Int
         versionCode = 1
         versionName = "1.0"
 
@@ -31,10 +30,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-    buildToolsVersion = "35.0.1"
 }
 
 dependencies {
@@ -55,5 +50,3 @@ dependencies {
     androidTestImplementation("androidx.test:rules:1.5.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }
-
-

@@ -4,12 +4,11 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath("com.android.tools.build:gradle:8.13.2")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0")
+        classpath("com.android.tools.build:gradle:9.2.1")
     }
 }
-val defaultTargetSdkVersion by extra(36)
-val compileSdkVersion by extra(36)
+extra.set("defaultTargetSdkVersion", 36)
+extra.set("compileSdkVersion", 36)
 
 allprojects {
     repositories {
@@ -19,7 +18,5 @@ allprojects {
 }
 
 tasks.register("clean", Delete::class) {
-    delete(rootProject.buildDir)
+    delete(rootProject.layout.buildDirectory)
 }
-
-
