@@ -36,10 +36,12 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.os.LocaleListCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
@@ -162,6 +164,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         setContentView(R.layout.activity_main)
 
         preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        currentMode = loadDefaultConversationMode()
         showFavoritesOnly = preferences.getBoolean(PREF_SHOW_FAVORITES, false)
 
         subtitleTextView = findViewById(R.id.subtitle)
@@ -707,14 +710,77 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         if (preferences.getBoolean(PREF_ONBOARDING_SHOWN, false)) {
             return
         }
+        val dialogView = layoutInflater.inflate(R.layout.dialog_onboarding_language, null)
+        val onboardingMessage = dialogView.findViewById<TextView>(R.id.onboarding_message_text)
+        val uiLanguageSpinner = dialogView.findViewById<Spinner>(R.id.onboarding_ui_language_spinner)
+        val defaultModeSpinner = dialogView.findViewById<Spinner>(R.id.onboarding_default_mode_spinner)
+
+        onboardingMessage.text = getString(R.string.onboarding_message)
+
+        val uiLanguageOptions = listOf(
+            UiLanguageOption("en", getString(R.string.app_language_english)),
+            UiLanguageOption("es", getString(R.string.app_language_spanish)),
+            UiLanguageOption("fr", getString(R.string.app_language_french)),
+            UiLanguageOption("de", getString(R.string.app_language_german))
+        )
+        val uiAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, uiLanguageOptions.map { it.label })
+        uiAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        uiLanguageSpinner.adapter = uiAdapter
+
+        val defaultModeOptions = listOf(
+            DefaultModeOption(ConversationMode.AUTO, getString(R.string.onboarding_mode_auto)),
+            DefaultModeOption(ConversationMode.ENGLISH_SPANISH, getString(R.string.onboarding_mode_en_es)),
+            DefaultModeOption(ConversationMode.ENGLISH_FRENCH, getString(R.string.onboarding_mode_en_fr)),
+            DefaultModeOption(ConversationMode.ENGLISH_GERMAN, getString(R.string.onboarding_mode_en_de))
+        )
+        val modeAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, defaultModeOptions.map { it.label })
+        modeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        defaultModeSpinner.adapter = modeAdapter
+
+        val selectedModeIndex = defaultModeOptions.indexOfFirst { it.mode == currentMode }.takeIf { it >= 0 } ?: 0
+        defaultModeSpinner.setSelection(selectedModeIndex, false)
+
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.onboarding_title))
-            .setMessage(getString(R.string.onboarding_message))
+            .setView(dialogView)
             .setPositiveButton(getString(R.string.onboarding_cta)) { _, _ ->
-                preferences.edit().putBoolean(PREF_ONBOARDING_SHOWN, true).apply()
+                val selectedLanguageTag =
+                    uiLanguageOptions.getOrNull(uiLanguageSpinner.selectedItemPosition)?.languageTag ?: "en"
+                val selectedMode =
+                    defaultModeOptions.getOrNull(defaultModeSpinner.selectedItemPosition)?.mode ?: ConversationMode.AUTO
+
+                preferences.edit()
+                    .putBoolean(PREF_ONBOARDING_SHOWN, true)
+                    .putString(PREF_DEFAULT_MODE, selectedMode.name)
+                    .apply()
+
+                applyConversationMode(selectedMode, persist = false)
+                AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(selectedLanguageTag))
             }
             .setCancelable(false)
             .show()
+    }
+
+    private fun loadDefaultConversationMode(): ConversationMode {
+        val stored = preferences.getString(PREF_DEFAULT_MODE, ConversationMode.AUTO.name) ?: ConversationMode.AUTO.name
+        return ConversationMode.values().firstOrNull { it.name == stored } ?: ConversationMode.AUTO
+    }
+
+    private fun persistDefaultConversationMode(mode: ConversationMode) {
+        preferences.edit().putString(PREF_DEFAULT_MODE, mode.name).apply()
+    }
+
+    private fun applyConversationMode(mode: ConversationMode, persist: Boolean = true) {
+        currentMode = mode
+        currentListeningLanguage = "en"
+        if (isListening) {
+            stopListening()
+        }
+        if (persist) {
+            persistDefaultConversationMode(mode)
+        }
+        updateModeUi()
+        statusTextView.text = getString(R.string.status_ready)
     }
 
     private fun loadExportHistory(): MutableList<String> {
@@ -1378,18 +1444,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun cycleLanguageMode() {
-        currentMode = when (currentMode) {
+        val nextMode = when (currentMode) {
             ConversationMode.AUTO -> ConversationMode.ENGLISH_SPANISH
             ConversationMode.ENGLISH_SPANISH -> ConversationMode.ENGLISH_FRENCH
             ConversationMode.ENGLISH_FRENCH -> ConversationMode.ENGLISH_GERMAN
             ConversationMode.ENGLISH_GERMAN -> ConversationMode.AUTO
         }
-        currentListeningLanguage = "en"
-        if (isListening) {
-            stopListening()
-        }
-        updateModeUi()
-        statusTextView.text = getString(R.string.status_ready)
+        applyConversationMode(nextMode)
     }
 
     private fun updateModeUi() {
@@ -1685,6 +1746,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private data class LanguageOption(val code: String, val label: String)
 
+    private data class UiLanguageOption(val languageTag: String, val label: String)
+
+    private data class DefaultModeOption(val mode: ConversationMode, val label: String)
+
     private data class SpeakerOption(val id: String, val label: String)
 
     private data class VoiceOption(val name: String, val label: String)
@@ -1795,6 +1860,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         private const val PREF_MODEL_MANAGER_ADVANCED = "pref_model_manager_advanced"
         private const val PREF_EXPORT_HISTORY = "pref_export_history"
         private const val PREF_ONBOARDING_SHOWN = "pref_onboarding_shown"
+        private const val PREF_DEFAULT_MODE = "pref_default_mode"
         private const val PREF_VOICE_EN = "pref_voice_en"
         private const val PREF_VOICE_ES = "pref_voice_es"
         private const val PREF_VOICE_FR = "pref_voice_fr"

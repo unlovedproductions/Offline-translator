@@ -120,4 +120,14 @@
 2) Use Language Mode and Start language to pick direction.
 3) Export or review history anytime.</string>
     <string name="onboarding_cta">Got it</string>
+    <string name="onboarding_language_label">App language</string>
+    <string name="onboarding_default_mode_label">Default conversation mode</string>
+    <string name="app_language_english">English</string>
+    <string name="app_language_spanish">Spanish</string>
+    <string name="app_language_french">French</string>
+    <string name="app_language_german">German</string>
+    <string name="onboarding_mode_auto">Auto detect</string>
+    <string name="onboarding_mode_en_es">English ↔ Spanish</string>
+    <string name="onboarding_mode_en_fr">English ↔ French</string>
+    <string name="onboarding_mode_en_de">English ↔ German</string>
 </resources>
