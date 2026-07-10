@@ -32,6 +32,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    androidResources {
+        // Vosk model binaries are large; store without deflate to avoid
+        // zipflinger OOM during packageDebug.
+        noCompress += listOf("fst", "mdl", "ie", "mat", "dubm")
+    }
 }
 
 kotlin {
