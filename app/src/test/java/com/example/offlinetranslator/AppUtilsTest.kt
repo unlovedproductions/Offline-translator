@@ -27,10 +27,10 @@ class AppUtilsTest {
 
     @Test
     fun escapeCsv_wrapsAndEscapesQuotes() {
-        val value = "Hello, "world""
+        val value = "Hello, \"world\""
         val escaped = AppUtils.escapeCsv(value)
-        assertTrue(escaped.startsWith("""))
-        assertTrue(escaped.endsWith("""))
-        assertTrue(escaped.contains(""""))
+        assertTrue(escaped.startsWith("\""))
+        assertTrue(escaped.endsWith("\""))
+        assertTrue(escaped.contains("\"\""))
     }
 }

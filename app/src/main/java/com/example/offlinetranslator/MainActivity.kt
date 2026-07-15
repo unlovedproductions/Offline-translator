@@ -296,6 +296,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     if (!isListening) {
                         statusTextView.text = getString(R.string.status_ready)
                     }
+                    updateListeningUi()
                 }
             }
 
@@ -1067,7 +1068,15 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun areSpeechModelsReady(): Boolean {
-        return englishVoskModel != null && spanishVoskModel != null && frenchVoskModel != null && germanVoskModel != null
+        return getSpeechModelForLanguage(getCurrentStartLanguageCode()) != null
+    }
+
+    private fun getCurrentStartLanguageCode(): String {
+        val position = startLanguageSpinner.selectedItemPosition
+        if (position >= 0 && position < startLanguageOptions.size) {
+            return startLanguageOptions[position].code
+        }
+        return "en"
     }
 
     private fun getSpeechModelForLanguage(languageCode: String): Model? {

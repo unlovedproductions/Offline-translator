@@ -19,3 +19,7 @@ build
 # Environment files
 *.env
 *.env.*
+.clawdea/REPO_STATE.md
+
+# JVM heap dumps
+*.hprof
