@@ -42,6 +42,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.os.LocaleListCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
@@ -161,7 +164,24 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
+
+        val rootView = findViewById<View>(R.id.root)
+        val initialPaddingLeft = rootView.paddingLeft
+        val initialPaddingTop = rootView.paddingTop
+        val initialPaddingRight = rootView.paddingRight
+        val initialPaddingBottom = rootView.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, windowInsets ->
+            val systemBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPadding(
+                initialPaddingLeft + systemBarInsets.left,
+                initialPaddingTop + systemBarInsets.top,
+                initialPaddingRight + systemBarInsets.right,
+                initialPaddingBottom + systemBarInsets.bottom
+            )
+            windowInsets
+        }
 
         preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         currentMode = loadDefaultConversationMode()
