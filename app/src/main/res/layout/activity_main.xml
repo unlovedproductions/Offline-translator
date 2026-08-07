@@ -78,7 +78,7 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/confidence_info_description"
                     android:src="@drawable/ic_info"
-                    android:tint="@color/secondary_color" />
+                    app:tint="@color/secondary_color" />
             </LinearLayout>
 
             <com.google.android.material.textfield.TextInputLayout
@@ -158,7 +158,7 @@
                     android:layout_marginEnd="8dp"
                     android:contentDescription="@string/listening_indicator_description"
                     android:src="@drawable/ic_mic"
-                    android:tint="@color/listening_idle" />
+                    app:tint="@color/listening_idle" />
 
                 <TextView
                     android:id="@+id/status_text"
