@@ -1,22 +1,28 @@
 # Puente Android App
 
-A conversational English-Spanish translation Android application that works completely offline. The app uses speech recognition to detect spoken language, translates it to the target language, and speaks the translation aloud, creating a seamless conversation experience.
+A conversational offline translation Android app for face-to-face turn-taking. Puente recognizes speech on-device (Vosk), translates with ML Kit, and speaks the result aloud (Android TTS)—without requiring cloud connectivity after the first model download.
 
+Supports **Auto English ↔ Spanish**, plus manual **English ↔ Spanish**, **English ↔ French**, and **English ↔ German**.
 
 ## Features
 
-- **Offline Speech Recognition**: Uses Vosk speech recognition library for high-accuracy offline voice input.
-- **Offline Translation**: Utilizes Google ML Kit Translation API for high-quality English-Spanish translation.
-- **Text-to-Speech**: Integrated Android TTS for natural-sounding spoken translations.
-- **Language Detection**: Intelligent automatic detection of spoken language.
-- **Conversational Flow**: Optimized for natural back-and-forth communication.
-- **Modern UI**: Clean Material Design 3 interface with intuitive conversational controls.
+- **Offline speech recognition**: Vosk models for English, Spanish, French, and German
+- **Offline translation**: Google ML Kit Translation for EN↔ES, EN↔FR, and EN↔DE
+- **Text-to-speech**: Android TTS with per-language voice preferences
+- **Language modes**: Auto detect (EN↔ES), or manual pairs with start language and quick swap
+- **Conversation transcript**: Searchable history with timestamps, favorites, and confidence scores
+- **Push-to-talk**: Optional PTT, silence auto-stop, mic level meter, and noise reduction
+- **Export**: TXT / PDF / CSV export with share and export history
+- **Phrasebook**: Offline English/Spanish phrases
+- **Model Manager**: Simple (Vosk) or advanced (Vosk + ML Kit) model controls
+- **Speaker profiles**: Speaker A/B labeling for shared-device use
+- **Modern UI**: Material Design single-activity interface
 
-For a detailed list of supported languages and technical capabilities, see the [Feature Overview](FEATURE_OVERVIEW.md).
+For a full capability list, see the [Feature Overview](FEATURE_OVERVIEW.md).  
+Website-ready product copy: [marketing/PRODUCT_OVERVIEW.md](marketing/PRODUCT_OVERVIEW.md).  
+Release history: [CHANGELOG.md](CHANGELOG.md).
 
 ## Architecture
-
-The application is built using the following components:
 
 ### Core Libraries
 - **Vosk Android**: Offline speech recognition
@@ -25,11 +31,11 @@ The application is built using the following components:
 - **Android TTS**: Text-to-speech synthesis
 
 ### Key Components
-1. **MainActivity**: Main activity handling UI and orchestrating all components
-2. **Speech Recognition**: Vosk-based offline speech recognition
-3. **Translation Engine**: ML Kit translation with offline models
-4. **Language Detection**: ML Kit language identification
-5. **Text-to-Speech**: Android native TTS with multiple language support
+1. **MainActivity**: UI and orchestration
+2. **Speech Recognition**: Vosk-based offline STT
+3. **Translation Engine**: ML Kit translators with offline models
+4. **Language Detection**: ML Kit language identification (Auto mode)
+5. **Text-to-Speech**: Android native TTS with multi-language support
 
 ## Prerequisites
 
@@ -44,13 +50,13 @@ The application is built using the following components:
 ### 1. Clone the Repository
 ```bash
 git clone <repository-url>
-cd Puente
+cd Offline-translator
 ```
 
 ### 2. Open in Android Studio
 1. Open Android Studio
 2. Select "Open an Existing Project"
-3. Navigate to the Puente directory
+3. Navigate to the `Offline-translator` directory
 4. Click "OK"
 
 ### 3. Sync Project
@@ -73,44 +79,44 @@ Android Studio will automatically sync the project and download dependencies.
 
 ### First Launch
 1. Grant microphone permission when prompted
-2. Wait for the app to download translation models (requires internet for first time)
-3. The Vosk speech recognition model will be unpacked automatically
+2. Complete onboarding (default language mode)
+3. Wait for the app to download ML Kit translation models (internet required once)
+4. Vosk speech models unpack automatically from assets
 
 ### Starting a Conversation
-1. Tap "Start Listening" to begin
-2. Speak in either English or Spanish
-3. The app will:
-   - Recognize your speech
-   - Detect the language
-   - Translate to the other language
-   - Speak the translation aloud
-   - Automatically start listening for a response
+1. Choose a language mode (Auto, EN↔ES, EN↔FR, or EN↔DE)
+2. Tap "Start Listening" (or use push-to-talk if enabled)
+3. Speak in one of the supported languages for that mode
+4. The app will recognize speech, translate, speak the result, and continue the turn flow
 
 ### Controls
 - **Start/Stop Listening**: Toggle voice recognition
+- **Push-to-talk**: Hold-to-speak mode when enabled
 - **Clear Conversation**: Clear the conversation history
+- **Export**: Save or share as TXT, PDF, or CSV
+- **Phrasebook / Model Manager**: Available from the main UI
 
 ## Technical Details
 
 ### Speech Recognition
-- Uses Vosk speech models for English, Spanish, French, and German (assets/model-en, model-es, model-fr, model-de)
-- Supports continuous speech recognition
+- Uses Vosk speech models for English, Spanish, French, and German (`assets/model-en`, `model-es`, `model-fr`, `model-de`)
+- Supports continuous recognition and push-to-talk
 - Processes audio at 16kHz sample rate
 
 ### Translation
 - Google ML Kit Translation API
-- Offline models for English ↔ Spanish
+- Offline models for English ↔ Spanish, English ↔ French, and English ↔ German
 - Models are downloaded on first use and cached locally
 
 ### Text-to-Speech
 - Android native TTS engine
-- Supports both English (US) and Spanish locales
-- Automatic language switching based on translation
+- Supports English, Spanish, French, and German locales
+- Automatic language switching based on translation; optional per-language voice selection
 
 ## File Structure
 
 ```
-Puente/
+Offline-translator/
 ├── app/
 │   ├── src/
 │   │   ├── main/
@@ -118,24 +124,22 @@ Puente/
 │   │   │   │   └── MainActivity.kt
 │   │   │   ├── res/
 │   │   │   │   ├── layout/
-│   │   │   │   │   └── activity_main.xml
 │   │   │   │   ├── values/
-│   │   │   │   │   ├── colors.xml
-│   │   │   │   │   ├── strings.xml
-│   │   │   │   │   └── themes.xml
 │   │   │   │   └── drawable/
-│   │   │   │       ├── ic_mic.xml
-│   │   │   │       └── ic_clear.xml
 │   │   │   ├── assets/
-│   │   │   │   └── model-en/, model-es/, model-fr/, model-de/ (Vosk model files)
+│   │   │   │   └── model-en/, model-es/, model-fr/, model-de/
 │   │   │   └── AndroidManifest.xml
-│   │   └── build.gradle.kts
+│   │   └── androidTest / test
 │   └── build.gradle.kts
+├── marketing/
+│   └── PRODUCT_OVERVIEW.md
 ├── gradle/
+├── FEATURE_OVERVIEW.md
+├── CHANGELOG.md
+├── SETUP_GUIDE.md
+├── README.md
 ├── gradlew
-├── gradlew.bat
-├── settings.gradle.kts
-└── README.md
+└── settings.gradle.kts
 ```
 
 ## Dependencies
@@ -190,11 +194,10 @@ The app requires the following permission:
 
 Potential improvements for future versions:
 
-1. **Additional Languages**: Support for more language pairs
-2. **Conversation History**: Save and review past conversations
-3. **Custom Vocabulary**: Add domain-specific terms
-4. **Voice Training**: Improve recognition accuracy for specific users
-5. **Offline Language Packs**: Pre-bundled language models
+1. **More language pairs** beyond EN↔ES / EN↔FR / EN↔DE
+2. **Custom / domain vocabulary** for specialized workflows
+3. **On-demand model downloads** with clearer per-language progress
+4. **Phrasebook search and audio playback**
 
 ## Support
 
@@ -203,4 +206,3 @@ For support, contact support@unlovedproductions.com
 ## License
 
 © unlovedproductions. All rights reserved. This application is proprietary software. Unauthorized copying, distribution, or modification is strictly prohibited.
-

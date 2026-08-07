@@ -52,16 +52,16 @@ This guide provides step-by-step instructions for setting up and building the Pu
 ## Project Setup
 
 ### 1. Download Project Files
-Extract the provided project files to a directory on your computer, for example:
+Extract or clone the project to a directory on your computer, for example:
 ```
-C:\AndroidProjects\Puente  (Windows)
-~/AndroidProjects/Puente   (macOS/Linux)
+C:\AndroidProjects\Offline-translator  (Windows)
+~/AndroidProjects/Offline-translator   (macOS/Linux)
 ```
 
 ### 2. Open Project in Android Studio
 1. Launch Android Studio
 2. Click "Open an Existing Project"
-3. Navigate to the Puente directory
+3. Navigate to the `Offline-translator` directory
 4. Click "OK"
 5. Wait for the project to sync (this may take several minutes)
 
@@ -132,30 +132,30 @@ On first launch:
 
 ### 3. Download Translation Models
 On first use with internet connection:
-1. The app will download ML Kit translation models
-2. This requires ~200MB of data
-3. Models are cached for offline use
+1. The app downloads ML Kit translation models for the active language pairs (EN↔ES, EN↔FR, EN↔DE as used)
+2. Allow enough storage and data for offline model caches (~100MB per language pack is typical)
+3. Models are cached locally; after download, recognition and translation work offline
+4. Vosk speech models (EN/ES/FR/DE) ship in assets and unpack on device—no separate download required
 
 ## Verification and Testing
 
 ### 1. Test Speech Recognition
-1. Tap "Start Listening"
+1. Tap "Start Listening" (or enable push-to-talk if preferred)
 2. Speak clearly in English
-3. Verify text appears in the conversation area
-4. Check that the app stops listening after speech
+3. Verify text appears in the conversation transcript
+4. Check that listening stops on silence (if auto-stop is enabled) or when you stop PTT
 
 ### 2. Test Translation
-1. Speak an English phrase
-2. Verify Spanish translation appears
-3. Check that translated text is spoken aloud
-4. Confirm app switches to listening for Spanish
+1. Use Auto or EN↔ES mode; speak an English phrase
+2. Verify Spanish translation appears and is spoken aloud
+3. Optionally switch to EN↔FR or EN↔DE and confirm those pairs translate correctly
 
 ### 3. Test Conversation Flow
-1. Start with English phrase
+1. Start with an English phrase in Auto or EN↔ES mode
 2. Wait for Spanish translation and speech
 3. Respond in Spanish
 4. Verify English translation and speech
-5. Confirm continuous conversation flow
+5. Confirm continuous conversation turn-taking
 
 ## Troubleshooting
 
@@ -236,6 +236,9 @@ For release builds, configure signing:
 ## Support and Resources
 
 ### Documentation
+- [README](README.md) — product and developer overview
+- [Feature Overview](FEATURE_OVERVIEW.md) — full capability list
+- [Changelog](CHANGELOG.md) — release history
 - Android Developer Guide: https://developer.android.com/guide
 - Vosk Documentation: https://alphacephei.com/vosk/
 - ML Kit Documentation: https://developers.google.com/ml-kit

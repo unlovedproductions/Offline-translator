@@ -1,30 +1,83 @@
-# Feature Overview - Puente
+# Feature Overview — Puente
 
-Puente is a professional-grade Android application designed for seamless, real-time conversational translation without requiring an active internet connection. By leveraging advanced on-device machine learning, the application ensures privacy, speed, and reliability in any environment.
+Puente is an Android application for face-to-face conversational translation that runs on-device. After the first ML Kit model download, speech recognition, translation, and spoken playback work without an active internet connection.
+
+Pipeline: **Vosk STT → ML Kit language ID + translate → Android TTS**.
 
 ## Key Features
 
-- **Real-Time Conversational Flow**: The application automatically detects the spoken language and provides instant audio and text translations, allowing for natural back-and-forth communication.
-- **On-Device Processing**: All speech recognition and translation tasks are performed locally on the device, ensuring data privacy and functionality in remote areas.
-- **High-Accuracy Speech Recognition**: Powered by the Vosk engine, providing robust voice-to-text capabilities even in noisy environments.
-- **Neural Machine Translation**: Utilizes Google ML Kit's state-of-the-art translation models for high-quality, context-aware translations.
-- **Integrated Text-to-Speech (TTS)**: Translations are automatically spoken aloud using high-quality synthetic voices.
+- **Conversational turn-taking**: Speak, get text + audio translation, continue the exchange without cloud chat.
+- **On-device processing**: Recognition and translation run locally for privacy and offline reliability.
+- **Offline speech recognition**: Vosk models for English, Spanish, French, and German.
+- **Neural machine translation**: Google ML Kit offline translation models.
+- **Integrated TTS**: Translations are spoken aloud; per-language voice preferences are supported.
+- **Conversation transcript**: Chat-style history with search, timestamps, favorites, and confidence indicators.
+- **Push-to-talk and silence control**: Optional PTT mode, silence auto-stop, mic level (dB), and noise reduction.
+- **Export and share**: Save conversations as TXT, PDF, or CSV with export history and system share.
+- **Offline phrasebook**: Quick EN/ES phrases for repeated workflows.
+- **Model Manager**: Simple (Vosk) or advanced (Vosk + ML Kit) model controls.
+- **Speaker profiles**: Speaker A/B labeling for shared-device interpreting.
+- **Onboarding**: First-launch language and default mode setup.
 
-## Supported Languages and Pairs
+## Supported Languages and Modes
 
-Currently, the application is optimized for the following language pairs and specific locales:
-
-### Primary Language Pair
-| Source Language | Target Language | Direction |
+| Mode | Direction | Notes |
 | :--- | :--- | :--- |
-| **English (United States)** | **Spanish** | Bidirectional (↔) |
+| **Auto** | English ↔ Spanish | Automatic language detection between turns |
+| **EN ↔ ES** | Bidirectional | Manual pair; start language + quick swap |
+| **EN ↔ FR** | Bidirectional | Manual pair; start language + quick swap |
+| **EN ↔ DE** | Bidirectional | Manual pair; start language + quick swap |
 
-### Supported Locales
-- **English**: `en-US` (United States)
-- **Spanish**: `es` (Standard Spanish)
+### Speech models (Vosk)
 
-## Technical Capabilities
+- English (`model-en`)
+- Spanish (`model-es`)
+- French (`model-fr`)
+- German (`model-de`)
 
-- **Automatic Language Identification**: The system intelligently distinguishes between English and Spanish speakers without manual switching.
-- **Offline Model Management**: High-performance translation models are stored locally (~100MB per language) for instant access.
-- **Continuous Listening**: Optimized for conversational turn-taking with automated re-activation after translation playback.
+### Translation models (ML Kit)
+
+Downloaded on first use (internet required once), then cached for offline use:
+
+- English ↔ Spanish
+- English ↔ French
+- English ↔ German
+
+## Conversation UX
+
+- RecyclerView transcript with styled bubbles and timestamps
+- Search filtering across the current conversation
+- Favorites for important turns
+- Confidence scores with low-confidence retry or translate-anyway
+- Start-language dropdown and quick language swap
+- Wake-lock while listening so the session stays active
+
+## Productivity and Ops
+
+- Export conversation to **TXT**, **PDF**, or **CSV**
+- Export history and share via FileProvider
+- Offline phrasebook (English / Spanish)
+- Model Manager for inspecting and managing local models
+- Per-language TTS voice selection
+
+## Privacy and Offline Behavior
+
+1. First launch may download ML Kit translation models (internet required).
+2. Vosk speech models ship in app assets and unpack on device.
+3. After setup, recognition, translation, and TTS work without network.
+4. Conversation and export data stay on device unless the user explicitly shares an export.
+
+## Technical Stack
+
+- **Vosk Android** — offline speech recognition
+- **Google ML Kit Translate** — offline translation
+- **Google ML Kit Language ID** — language detection (Auto mode)
+- **Android TTS** — spoken playback
+- **Material Design** — single-activity Kotlin UI (`MainActivity`)
+
+## Related Docs
+
+- [README](README.md) — setup and developer overview
+- [Changelog](CHANGELOG.md) — release history
+- [Product overview (website copy)](marketing/PRODUCT_OVERVIEW.md) — sales-facing summary
+- [Setup Guide](SETUP_GUIDE.md) — build and device setup
