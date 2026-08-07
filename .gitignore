@@ -23,3 +23,9 @@ build
 
 # JVM heap dumps
 *.hprof
+
+# Local IDE / tooling noise
+.idea/deviceManager.xml
+.idea/deploymentTargetSelector.xml
+.idea/easycode/
+.clawdea/wiki/.drift-state.json
