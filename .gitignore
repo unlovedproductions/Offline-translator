@@ -30,28 +30,21 @@ captures/
 # Local git / agent identity
 .gitconfig
 
-# Local IDE / tooling noise
-.idea/caches/
-.idea/libraries/
-.idea/pre-push-checker/
-.idea/workspace.xml
-.idea/deviceManager.xml
-.idea/deploymentTargetSelector.xml
-.idea/easycode/
-.idea/easycode.ignore
-.idea/application-inspector-plugin.xml
-.idea/jsonSchemas.xml
-.idea/studiobot.xml
-.idea/planningMode.xml
-.idea/appInsightsSettings.xml
-.idea/gradle.xml
-.idea/compiler.xml
-.idea/misc.xml
-.idea/markdown.xml
-.idea/*.iml
+# IDE / local tooling (regenerated)
+.idea/
 .vscode/
 .junie/
 .ai
 .emergent/
+*.iml
+findbugs-android-exclude.xml
+
+# Agent / internal notes not needed to build
+memory/
+test_reports/
+spanish_model_test_analysis.md
+merge_recommendation_report.md
+IMPROVEMENT_SUGGESTIONS.md
+
 .clawdea/REPO_STATE.md
 .clawdea/wiki/.drift-state.json
