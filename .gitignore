@@ -1,31 +1,54 @@
-# Ignore Gradle project-specific cache directory
+# Gradle
 .gradle
-
-# Ignore Gradle build output directory
 build
--e 
+
+# Local Android SDK / NDK paths
+local.properties
+
 # Environment files
 *.env
 *.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
-.clawdea/REPO_STATE.md
 
 # JVM heap dumps
 *.hprof
 
+# Kotlin compiler local caches and error logs
+.kotlin/
+
+# Android native/local build artifacts
+.cxx/
+.externalNativeBuild/
+captures/
+*.apk
+*.aab
+*.log
+.DS_Store
+
+# Local git / agent identity
+.gitconfig
+
 # Local IDE / tooling noise
+.idea/caches/
+.idea/libraries/
+.idea/pre-push-checker/
+.idea/workspace.xml
 .idea/deviceManager.xml
 .idea/deploymentTargetSelector.xml
 .idea/easycode/
+.idea/easycode.ignore
+.idea/application-inspector-plugin.xml
+.idea/jsonSchemas.xml
+.idea/studiobot.xml
+.idea/planningMode.xml
+.idea/appInsightsSettings.xml
+.idea/gradle.xml
+.idea/compiler.xml
+.idea/misc.xml
+.idea/markdown.xml
+.idea/*.iml
+.vscode/
+.junie/
+.ai
+.emergent/
+.clawdea/REPO_STATE.md
 .clawdea/wiki/.drift-state.json
