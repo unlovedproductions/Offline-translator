@@ -119,6 +119,7 @@
     <string name="onboarding_message">1) Tap Start Listening to begin.
 2) Use Language Mode and Start language to pick direction.
 3) Export or review history anytime.</string>
+    <string name="privacy_notice">Speech recognition stays on this device. Translation models download from Google over Wi‑Fi; Google may collect ML Kit utilization metrics. Spoken playback uses on-device TTS voices only. Conversation exports leave the device only if you share them.</string>
     <string name="onboarding_cta">Got it</string>
     <string name="onboarding_language_label">App language</string>
     <string name="onboarding_default_mode_label">Default conversation mode</string>

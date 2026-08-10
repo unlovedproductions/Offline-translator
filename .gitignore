@@ -4,6 +4,9 @@ build
 
 # Local Android SDK / NDK paths
 local.properties
+keystore.properties
+*.jks
+*.keystore
 
 # Environment files
 *.env

@@ -40,7 +40,7 @@ Release history: [CHANGELOG.md](CHANGELOG.md).
 ## Prerequisites
 
 - Android Studio Arctic Fox or later
-- Android SDK 21 (Android 5.0) or higher
+- Android SDK 23 (Android 6.0) or higher
 - Java 17 or Kotlin support
 - Minimum 2GB RAM for optimal performance
 - Storage space for offline models (~2GB)

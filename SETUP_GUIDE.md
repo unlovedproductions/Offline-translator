@@ -12,7 +12,7 @@ This guide provides step-by-step instructions for setting up and building the Pu
 - **Storage**: At least 10GB free space
 
 ### Target Device Requirements
-- **Android Version**: API level 21 (Android 5.0) or higher
+- **Android Version**: API level 23 (Android 6.0) or higher
 - **RAM**: Minimum 2GB (4GB recommended for optimal performance)
 - **Storage**: 3GB free space for models and app data
 - **Microphone**: Required for speech input

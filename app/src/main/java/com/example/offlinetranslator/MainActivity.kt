@@ -242,7 +242,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         setupPushToTalkToggle()
         updateFavoritesUi()
 
-        LibVosk.setLogLevel(LogLevel.INFO)
+        LibVosk.setLogLevel(LogLevel.WARNINGS)
 
         tts = TextToSpeech(this, this)
         languageIdentifier = LanguageIdentification.getClient()
@@ -586,6 +586,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun renderModelManagerList(container: LinearLayout, storageText: TextView, advanced: Boolean) {
         container.removeAllViews()
+        container.addView(createInfoText(getString(R.string.privacy_notice)))
         container.addView(createSectionHeader(getString(R.string.model_manager_section_vosk)))
         val voskEntries = buildVoskModelEntries { renderModelManagerList(container, storageText, advanced) }
         voskEntries.forEach { addModelEntryView(container, it) }
@@ -661,7 +662,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     .addOnSuccessListener { onUpdated() }
                     .addOnFailureListener { showToast(getString(R.string.status_error_models)) }
             } else {
-                val conditions = DownloadConditions.Builder().build()
+                val conditions = wifiDownloadConditions()
                 modelManager.download(remoteModel, conditions)
                     .addOnSuccessListener { onUpdated() }
                     .addOnFailureListener { showToast(getString(R.string.status_error_models)) }
@@ -736,7 +737,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         val uiLanguageSpinner = dialogView.findViewById<Spinner>(R.id.onboarding_ui_language_spinner)
         val defaultModeSpinner = dialogView.findViewById<Spinner>(R.id.onboarding_default_mode_spinner)
 
-        onboardingMessage.text = getString(R.string.onboarding_message)
+        onboardingMessage.text = getString(R.string.onboarding_message) + "\n\n" + getString(R.string.privacy_notice)
 
         val uiLanguageOptions = listOf(
             UiLanguageOption("en", getString(R.string.app_language_english)),
@@ -917,10 +918,34 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         conversationAdapter.notifyDataSetChanged()
         currentSearchQuery = ""
         searchInput.setText("")
+        deleteExportFiles()
+        saveExportHistory(emptyList())
         updateEmptyState()
         currentListeningLanguage = "en"
         syncStartLanguageSelection()
         statusTextView.text = getString(R.string.status_ready)
+    }
+
+    private fun exportsDir(): File {
+        val dir = File(filesDir, EXPORTS_DIR)
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+        return dir
+    }
+
+    private fun deleteExportFiles() {
+        val dir = File(filesDir, EXPORTS_DIR)
+        if (dir.isDirectory) {
+            dir.listFiles()?.forEach { it.delete() }
+        }
+        filesDir.listFiles()
+            ?.filter { it.isFile && it.name.startsWith("conversation_") }
+            ?.forEach { it.delete() }
+    }
+
+    private fun wifiDownloadConditions(): DownloadConditions {
+        return DownloadConditions.Builder().requireWifi().build()
     }
 
     private fun downloadTranslationModels() {
@@ -940,9 +965,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
         pendingModelDownloads += 1
         updateModelDownloadUi()
-        translator.downloadModelIfNeeded()
+        translator.downloadModelIfNeeded(wifiDownloadConditions())
             .addOnSuccessListener {
-                Log.d(TAG, "$label model downloaded")
                 pendingModelDownloads -= 1
                 updateModelDownloadUi()
                 updateStatusIfReady()
@@ -993,7 +1017,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun buildVoiceOptions(voices: List<Voice>, languageCode: String): List<VoiceOption> {
-        val filtered = voices.filter { it.locale.language == languageCode }
+        val filtered = voices.filter {
+            it.locale.language == languageCode && !it.isNetworkConnectionRequired
+        }
         if (filtered.isEmpty()) {
             return listOf(VoiceOption(VOICE_DEFAULT, getString(R.string.voice_default)))
         }
@@ -1389,7 +1415,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         languageIdentifier.identifyLanguage(text)
             .addOnSuccessListener { languageCode ->
                 val normalizedCode = languageCode.lowercase(Locale.US)
-                Log.d(TAG, "Detected language: $normalizedCode")
                 if (normalizedCode == "en" || normalizedCode == "es") {
                     addUserMessage(text, normalizedCode, confidence)
                     val targetLanguage = if (normalizedCode == "en") "es" else "en"
@@ -1629,14 +1654,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         when (exportType) {
             ExportType.TEXT -> {
                 val fileName = "conversation_${timestamp}.txt"
-                val file = File(filesDir, fileName)
+                val file = File(exportsDir(), fileName)
                 file.writeText(transcript)
                 addExportHistoryEntry(fileName)
                 shareExportFile(file, "text/plain", fileName)
             }
             ExportType.PDF -> {
                 val fileName = "conversation_${timestamp}.pdf"
-                val file = File(filesDir, fileName)
+                val file = File(exportsDir(), fileName)
                 try {
                     createPdfFromText(transcript, file)
                     addExportHistoryEntry(fileName)
@@ -1648,7 +1673,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             }
             ExportType.CSV -> {
                 val fileName = "conversation_${timestamp}.csv"
-                val file = File(filesDir, fileName)
+                val file = File(exportsDir(), fileName)
                 try {
                     createCsvFile(file)
                     addExportHistoryEntry(fileName)
@@ -1879,6 +1904,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         private const val SPANISH_MODEL_ASSET_PATH = "model-es"
         private const val FRENCH_MODEL_ASSET_PATH = "model-fr"
         private const val GERMAN_MODEL_ASSET_PATH = "model-de"
+        private const val EXPORTS_DIR = "exports"
         private const val ENGLISH_MODEL_STORAGE_DIR = "model-en"
         private const val SPANISH_MODEL_STORAGE_DIR = "model-es"
         private const val FRENCH_MODEL_STORAGE_DIR = "model-fr"

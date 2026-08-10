@@ -19,7 +19,7 @@ An offline, conversational translator for **English ↔ Spanish** with optional 
 
 ## 2) Tech Stack & Tooling
 - **Language:** Kotlin
-- **Target:** Android (minSdk 21)
+- **Target:** Android (minSdk 23)
 - **Build system:** Gradle Kotlin DSL
 - **UI:** XML layouts + Material 3
 - **Speech recognition:** Vosk Android (com.alphacephei:vosk-android:0.3.75)

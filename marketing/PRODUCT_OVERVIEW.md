@@ -89,9 +89,11 @@ Model Manager for Vosk speech models and ML Kit translation packs—simple view 
 ## Trust and privacy
 
 - Speech recognition uses on-device Vosk models (English, Spanish, French, German bundled with the app).
-- Translation uses Google ML Kit offline models after the initial download.
-- Core conversation flow does not require cloud STT or cloud translation APIs once models are cached.
+- Translation uses Google ML Kit on-device models after a Wi‑Fi download. Google may collect ML Kit utilization metrics; this is not “nothing ever leaves the device.”
+- Spoken playback uses on-device TTS voices only.
+- Core conversation flow does not use cloud STT or cloud translation APIs once models are cached.
 - Exports leave the device only when a user explicitly shares them.
+- Android backup of app data is disabled.
 
 ---
 
@@ -104,7 +106,7 @@ Model Manager for Vosk speech models and ML Kit translation packs—simple view 
 | Manual | English ↔ French |
 | Manual | English ↔ German |
 
-Platform: **Android** (API 21+).
+Platform: **Android** (API 23+).
 
 ---
 
