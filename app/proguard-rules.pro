@@ -6,8 +6,15 @@
 }
 -dontwarn java.awt.**
 
-# ML Kit Translate + Language ID 17+
--keep class com.google.mlkit.nl.translate.** { *; }
--keep class com.google.mlkit.nl.languageid.** { *; }
--keep class com.google.mlkit.nl.languageid.internal.ThickLanguageIdentifier { *; }
+# Firebase Components DI used by ML Kit (AGP 9 / R8 full mode)
+-dontwarn com.google.firebase.components.Component$Instantiation
+-dontwarn com.google.firebase.components.Component$ComponentType
+-keep class * implements com.google.firebase.components.ComponentRegistrar {
+  void <init>();
+}
+-keep,allowshrinking interface com.google.firebase.components.ComponentRegistrar
+
+# ML Kit common + NL (translate / language-id)
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.internal.mlkit_** { *; }
 -dontwarn com.google.mlkit.**
