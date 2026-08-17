@@ -1,31 +1,47 @@
 # Gradle
 .gradle
 build
+gradle.properties.local
 
-# Local Android SDK / NDK paths
+# Local Android SDK / NDK / signing
 local.properties
 keystore.properties
 *.jks
 *.keystore
+*.p12
+*.pem
 
-# Environment files
+# Environment / secrets
 *.env
 *.env.*
 
 # JVM heap dumps
 *.hprof
 
-# Kotlin compiler local caches and error logs
+# Kotlin / Android local build artifacts
 .kotlin/
-
-# Android native/local build artifacts
 .cxx/
 .externalNativeBuild/
 captures/
 *.apk
 *.aab
+*.ap_
+*.dex
+*.class
+bin/
+gen/
+out/
+.navigation/
+
+# Logs / OS junk
 *.log
+*.bak
+*.orig
+*~
 .DS_Store
+.directory
+Thumbs.db
+Desktop.ini
 
 # Local git / agent identity
 .gitconfig
@@ -33,11 +49,17 @@ captures/
 # IDE / local tooling (regenerated)
 .idea/
 .vscode/
+.fleet/
+.cursor/
 .junie/
-.ai
+.ai/
 .emergent/
+.clawdea/
 *.iml
+*.ipr
+*.iws
 findbugs-android-exclude.xml
+findbugs*.xml
 
 # Agent / internal notes not needed to build
 memory/
@@ -45,6 +67,3 @@ test_reports/
 spanish_model_test_analysis.md
 merge_recommendation_report.md
 IMPROVEMENT_SUGGESTIONS.md
-
-.clawdea/REPO_STATE.md
-.clawdea/wiki/.drift-state.json
