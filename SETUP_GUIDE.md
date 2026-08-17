@@ -31,8 +31,8 @@ This guide provides step-by-step instructions for setting up and building the Pu
 2. Go to File → Settings (or Android Studio → Preferences on macOS)
 3. Navigate to Appearance & Behavior → System Settings → Android SDK
 4. Ensure the following are installed:
-   - Android SDK Platform 34
-   - Android SDK Build-Tools 34.0.0
+   - Android SDK Platform 37
+   - Android SDK Build-Tools 37.0.0
    - Android SDK Command-line Tools
    - Android Emulator (if using emulator)
 
@@ -46,7 +46,7 @@ This guide provides step-by-step instructions for setting up and building the Pu
 **For Emulator:**
 1. Open AVD Manager in Android Studio
 2. Create a new virtual device
-3. Choose a device with API level 21 or higher
+3. Choose a device with API level 23 or higher
 4. Ensure the emulator has sufficient RAM (2GB+)
 
 ## Project Setup
@@ -131,7 +131,7 @@ On first launch:
 3. Wait for initial setup to complete
 
 ### 3. Download Translation Models
-On first use with internet connection:
+On first use over **Wi‑Fi**:
 1. The app downloads ML Kit translation models for the active language pairs (EN↔ES, EN↔FR, EN↔DE as used)
 2. Allow enough storage and data for offline model caches (~100MB per language pack is typical)
 3. Models are cached locally; after download, recognition and translation work offline
@@ -142,7 +142,7 @@ On first use with internet connection:
 ### 1. Test Speech Recognition
 1. Tap "Start Listening" (or enable push-to-talk if preferred)
 2. Speak clearly in English
-3. Verify text appears in the conversation transcript
+3. Tap **Transcript** and verify text appears in the dialog
 4. Check that listening stops on silence (if auto-stop is enabled) or when you stop PTT
 
 ### 2. Test Translation
@@ -193,7 +193,7 @@ org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m
 3. Check app logs for error messages
 
 **Translation Not Working:**
-1. Ensure internet connection for initial model download
+1. Ensure **Wi‑Fi** for the initial model download
 2. Check available storage space
 3. Verify ML Kit services are installed
 
@@ -223,15 +223,15 @@ To use different Vosk models:
 3. Update model path constants in MainActivity.kt if necessary
 
 ### Build Variants
-The project supports debug and release builds:
-- Debug: Includes logging and debugging features
-- Release: Optimized for production use
+- Debug: `applicationId` suffix `.debug`; debuggable; do not sell
+- Release: minified; signed if `keystore.properties` is present
 
 ### Signing Configuration
-For release builds, configure signing:
-1. Generate keystore file
-2. Add signing configuration to build.gradle
-3. Build signed APK for distribution
+For Gumroad / paid APKs:
+1. Copy `keystore.properties.example` to `keystore.properties` (gitignored)
+2. Point `storeFile` at your `.jks` (see [RECOVERY.md](RECOVERY.md))
+3. `./gradlew :app:assembleRelease`
+4. Ship only `app/build/outputs/apk/release/app-release.apk`
 
 ## Support and Resources
 
@@ -239,6 +239,7 @@ For release builds, configure signing:
 - [README](README.md) — product and developer overview
 - [Feature Overview](FEATURE_OVERVIEW.md) — full capability list
 - [Changelog](CHANGELOG.md) — release history
+- [Recovery](RECOVERY.md) — restore source, keystore, signed APK
 - Android Developer Guide: https://developer.android.com/guide
 - Vosk Documentation: https://alphacephei.com/vosk/
 - ML Kit Documentation: https://developers.google.com/ml-kit

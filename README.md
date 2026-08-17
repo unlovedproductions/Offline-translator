@@ -1,6 +1,6 @@
 # Puente Android App
 
-A conversational offline translation Android app for face-to-face turn-taking. Puente recognizes speech on-device (Vosk), translates with ML Kit, and speaks the result aloud (Android TTS)—without requiring cloud connectivity after the first model download.
+A conversational translation Android app for face-to-face turn-taking. Puente recognizes speech on-device (Vosk), translates with ML Kit, and speaks the result aloud (on-device Android TTS). Translation packs download from Google over **Wi‑Fi** on first use; after that, recognition and translation run locally. This is not an air-gapped product (see privacy below).
 
 Supports **Auto English ↔ Spanish**, plus manual **English ↔ Spanish**, **English ↔ French**, and **English ↔ German**.
 
@@ -10,7 +10,7 @@ Supports **Auto English ↔ Spanish**, plus manual **English ↔ Spanish**, **En
 - **Offline translation**: Google ML Kit Translation for EN↔ES, EN↔FR, and EN↔DE
 - **Text-to-speech**: Android TTS with per-language voice preferences
 - **Language modes**: Auto detect (EN↔ES), or manual pairs with start language and quick swap
-- **Conversation transcript**: Searchable history with timestamps, favorites, and confidence scores
+- **Conversation transcript**: Dialog (Transcript button) with search, timestamps, favorites, and confidence scores
 - **Push-to-talk**: Optional PTT, silence auto-stop, mic level meter, and noise reduction
 - **Export**: TXT / PDF / CSV export with share and export history
 - **Phrasebook**: Offline English/Spanish phrases
@@ -20,7 +20,9 @@ Supports **Auto English ↔ Spanish**, plus manual **English ↔ Spanish**, **En
 
 For a full capability list, see the [Feature Overview](FEATURE_OVERVIEW.md).  
 Website-ready product copy: [marketing/PRODUCT_OVERVIEW.md](marketing/PRODUCT_OVERVIEW.md).  
-Release history: [CHANGELOG.md](CHANGELOG.md).
+Gumroad listing: [marketing/GUMROAD_LISTING.md](marketing/GUMROAD_LISTING.md).  
+Release history: [CHANGELOG.md](CHANGELOG.md).  
+If the tree or keystore is lost: [RECOVERY.md](RECOVERY.md).
 
 ## Architecture
 
@@ -40,8 +42,8 @@ Release history: [CHANGELOG.md](CHANGELOG.md).
 ## Prerequisites
 
 - Android Studio Arctic Fox or later
-- Android SDK 23 (Android 6.0) or higher
-- Java 17 or Kotlin support
+- Android SDK 23 (Android 6.0) or higher (compile/target SDK 37)
+- JDK 17 or later
 - Minimum 2GB RAM for optimal performance
 - Storage space for offline models (~2GB)
 
@@ -71,17 +73,26 @@ Android Studio will automatically sync the project and download dependencies.
 2. If you want to replace them, download newer models and swap those folders.
 
 ### 5. Build and Run
-1. Connect an Android device or start an emulator
-2. Click "Run" or press Shift+F10
-3. The app will install and launch on your device
+1. Connect an Android device or start an emulator (API 23+)
+2. Click "Run" or `./gradlew :app:assembleDebug`
+3. The debug app id is `com.puente.offline.translator.debug`
+
+### Release build (Gumroad)
+
+Do not sell debug or unsigned APKs. See [RECOVERY.md](RECOVERY.md) and `keystore.properties.example`.
+
+```bash
+./gradlew :app:assembleRelease
+# signed APK: app/build/outputs/apk/release/app-release.apk
+```
 
 ## Usage
 
 ### First Launch
 1. Grant microphone permission when prompted
 2. Complete onboarding (default language mode)
-3. Wait for the app to download ML Kit translation models (internet required once)
-4. Vosk speech models unpack automatically from assets
+3. Wait for ML Kit translation models to download (**Wi‑Fi required** once)
+4. Vosk speech models unpack automatically from assets (each `model-*` folder needs a `uuid` file)
 
 ### Starting a Conversation
 1. Choose a language mode (Auto, EN↔ES, EN↔FR, or EN↔DE)
@@ -91,8 +102,9 @@ Android Studio will automatically sync the project and download dependencies.
 
 ### Controls
 - **Start/Stop Listening**: Toggle voice recognition
+- **Transcript**: Open searchable conversation history
 - **Push-to-talk**: Hold-to-speak mode when enabled
-- **Clear Conversation**: Clear the conversation history
+- **Clear Conversation**: Clear history and delete local export files
 - **Export**: Save or share as TXT, PDF, or CSV
 - **Phrasebook / Model Manager**: Available from the main UI
 
@@ -106,12 +118,12 @@ Android Studio will automatically sync the project and download dependencies.
 ### Translation
 - Google ML Kit Translation API
 - Offline models for English ↔ Spanish, English ↔ French, and English ↔ German
-- Models are downloaded on first use and cached locally
+- Models download over Wi‑Fi on first use and are cached locally. Google may collect ML Kit utilization metrics ([ML Kit Terms](https://developers.google.com/ml-kit/terms)).
 
 ### Text-to-Speech
 - Android native TTS engine
 - Supports English, Spanish, French, and German locales
-- Automatic language switching based on translation; optional per-language voice selection
+- Automatic language switching based on translation; per-language **on-device** voice selection only
 
 ## File Structure
 
@@ -131,12 +143,14 @@ Offline-translator/
 │   │   │   └── AndroidManifest.xml
 │   │   └── androidTest / test
 │   └── build.gradle.kts
-├── marketing/
-│   └── PRODUCT_OVERVIEW.md
+├── marketing/          # PRODUCT_OVERVIEW.md, GUMROAD_LISTING.md
 ├── gradle/
 ├── FEATURE_OVERVIEW.md
 ├── CHANGELOG.md
+├── RECOVERY.md
 ├── SETUP_GUIDE.md
+├── LICENSE
+├── NOTICE
 ├── README.md
 ├── gradlew
 └── settings.gradle.kts
@@ -148,11 +162,11 @@ The app uses the following key dependencies:
 
 ```kotlin
 dependencies {
-    implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.appcompat:appcompat:1.6.1")
-    implementation("com.google.android.material:material:1.11.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    implementation("androidx.recyclerview:recyclerview:1.3.2")
+    implementation("androidx.core:core-ktx:1.19.0")
+    implementation("androidx.appcompat:appcompat:1.7.1")
+    implementation("com.google.android.material:material:1.14.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.2.2")
+    implementation("androidx.recyclerview:recyclerview:1.4.0")
     implementation("com.alphacephei:vosk-android:0.3.75")
     implementation("com.google.mlkit:language-id:17.0.6")
     implementation("com.google.mlkit:translate:17.0.3")
@@ -161,8 +175,11 @@ dependencies {
 
 ## Permissions
 
-The app requires the following permission:
-- `RECORD_AUDIO`: For speech recognition functionality
+The app requires:
+- `RECORD_AUDIO`: speech recognition
+- `WAKE_LOCK`: keep listening sessions awake
+
+Android backup of app data is disabled.
 
 ## Troubleshooting
 
@@ -174,7 +191,7 @@ The app requires the following permission:
    - Verify Vosk model is properly unpacked
 
 2. **Translation Not Working**
-   - Ensure internet connection for initial model download
+   - Ensure **Wi‑Fi** for the initial ML Kit model download
    - Check device storage space (models require ~100MB each)
    - Verify ML Kit services are available
 
@@ -186,8 +203,8 @@ The app requires the following permission:
 ### Performance Optimization
 
 - The app works best on devices with at least 2GB RAM
-- First launch requires internet for downloading translation models
-- Subsequent uses work completely offline
+- First launch requires **Wi‑Fi** for ML Kit translation models
+- After that, recognition and translation run on-device (ML Kit may still send utilization metrics)
 - Models are cached locally for faster access
 
 ## Future Enhancements
@@ -205,4 +222,5 @@ For support, contact support@unlovedproductions.com
 
 ## License
 
-© unlovedproductions. All rights reserved. This application is proprietary software. Unauthorized copying, distribution, or modification is strictly prohibited.
+Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Buyers of the Gumroad APK are paying for the signed build and email support, not exclusive rights.

@@ -1,17 +1,17 @@
 # Feature Overview — Puente
 
-Puente is an Android application for face-to-face conversational translation that runs on-device. After the first ML Kit model download, speech recognition, translation, and spoken playback work without an active internet connection.
+Puente is an Android application for face-to-face conversational translation. After the first ML Kit download over Wi‑Fi, speech recognition and translation inference run on-device. Spoken playback uses on-device TTS. Google may still collect ML Kit utilization metrics.
 
 Pipeline: **Vosk STT → ML Kit language ID + translate → Android TTS**.
 
 ## Key Features
 
 - **Conversational turn-taking**: Speak, get text + audio translation, continue the exchange without cloud chat.
-- **On-device processing**: Recognition and translation run locally for privacy and offline reliability.
+- **On-device processing**: After Wi‑Fi model download, recognition and translation inference run locally. ML Kit may still send utilization metrics.
 - **Offline speech recognition**: Vosk models for English, Spanish, French, and German.
 - **Neural machine translation**: Google ML Kit offline translation models.
 - **Integrated TTS**: Translations are spoken aloud; per-language voice preferences are supported.
-- **Conversation transcript**: Chat-style history with search, timestamps, favorites, and confidence indicators.
+- **Conversation transcript**: Dedicated **Transcript** dialog with search, timestamps, favorites, and confidence indicators.
 - **Push-to-talk and silence control**: Optional PTT mode, silence auto-stop, mic level (dB), and noise reduction.
 - **Export and share**: Save conversations as TXT, PDF, or CSV with export history and system share.
 - **Offline phrasebook**: Quick EN/ES phrases for repeated workflows.
@@ -37,7 +37,7 @@ Pipeline: **Vosk STT → ML Kit language ID + translate → Android TTS**.
 
 ### Translation models (ML Kit)
 
-Downloaded on first use (internet required once), then cached for offline use:
+Downloaded on first use (**Wi‑Fi** required), then cached for on-device use:
 
 - English ↔ Spanish
 - English ↔ French
@@ -45,7 +45,8 @@ Downloaded on first use (internet required once), then cached for offline use:
 
 ## Conversation UX
 
-- RecyclerView transcript with styled bubbles and timestamps
+- Transcript opens from the **Transcript** button (`dialog_transcript.xml`); not a permanent card on the main screen
+- RecyclerView history with styled bubbles and timestamps
 - Search filtering across the current conversation
 - Favorites for important turns
 - Confidence scores with low-confidence retry or translate-anyway
@@ -62,10 +63,13 @@ Downloaded on first use (internet required once), then cached for offline use:
 
 ## Privacy and Offline Behavior
 
-1. First launch may download ML Kit translation models (internet required).
-2. Vosk speech models ship in app assets and unpack on device.
-3. After setup, recognition, translation, and TTS work without network.
-4. Conversation and export data stay on device unless the user explicitly shares an export.
+1. First launch downloads ML Kit translation models over **Wi‑Fi** (`requireWifi()`).
+2. Google may collect ML Kit performance/utilization metrics ([terms](https://developers.google.com/ml-kit/terms)). This is not air-gapped.
+3. Vosk speech models ship in app assets (each `model-*` needs a `uuid` file) and unpack on device.
+4. Spoken playback uses **on-device TTS voices only**.
+5. After models are cached, recognition and translation inference run locally (no cloud STT / cloud translate APIs).
+6. Exports live under `files/exports/` and leave the device only if the user shares them. Clear conversation deletes those files.
+7. Android cloud backup of app data is disabled.
 
 ## Technical Stack
 
@@ -79,5 +83,7 @@ Downloaded on first use (internet required once), then cached for offline use:
 
 - [README](README.md) — setup and developer overview
 - [Changelog](CHANGELOG.md) — release history
+- [Recovery](RECOVERY.md) — restore source and signed release
 - [Product overview (website copy)](marketing/PRODUCT_OVERVIEW.md) — sales-facing summary
+- [Gumroad listing](marketing/GUMROAD_LISTING.md) — store copy
 - [Setup Guide](SETUP_GUIDE.md) — build and device setup
