@@ -10,6 +10,7 @@
     <string name="search_hint">Search transcript</string>
 
     <string name="transcript_title">Transcript</string>
+    <string name="transcript_button_label">Transcript</string>
     <string name="confidence_info_description">About confidence scores</string>
     <string name="confidence_tooltip_title">Confidence scores</string>
     <string name="confidence_tooltip_message">Confidence reflects how sure the recognizer is about a phrase. Higher is better. Low confidence prompts you to retry or translate anyway.</string>

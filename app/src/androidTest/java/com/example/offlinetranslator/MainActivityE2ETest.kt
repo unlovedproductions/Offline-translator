@@ -161,14 +161,18 @@ class MainActivityE2ETest {
     @Test
     fun searchInput_acceptsQueryWithoutCrashingEmptyTranscript() {
         ActivityScenario.launch(MainActivity::class.java).use {
+            onView(withId(R.id.transcript_button)).perform(click())
             onView(withId(R.id.search_input)).perform(replaceText("hola"))
             closeSoftKeyboard()
             onView(withId(R.id.search_input)).check(matches(withText("hola")))
             onView(withId(R.id.empty_state_text)).check(matches(isDisplayed()))
-            onView(withId(R.id.clear_button)).perform(scrollTo(), click())
+            onView(withText(R.string.close)).perform(click())
+            onView(withId(R.id.clear_button)).perform(click())
+            onView(withId(R.id.transcript_button)).perform(click())
             onView(withId(R.id.search_input)).check(matches(withText("")))
             onView(withId(R.id.empty_state_text))
                 .check(matches(withText(R.string.empty_state)))
+            onView(withText(R.string.close)).perform(click())
             onView(withId(R.id.status_text))
                 .check(matches(withText(R.string.status_ready)))
         }
@@ -177,9 +181,11 @@ class MainActivityE2ETest {
     @Test
     fun utilityDialogs_openAndCanBeDismissed() {
         ActivityScenario.launch(MainActivity::class.java).use {
+            onView(withId(R.id.transcript_button)).perform(click())
             onView(withId(R.id.confidence_info_button)).perform(click())
             onView(withText(R.string.confidence_tooltip_title)).check(matches(isDisplayed()))
             onView(withText(R.string.confidence_tooltip_cta)).perform(click())
+            onView(withText(R.string.close)).perform(click())
 
             onView(withId(R.id.phrasebook_button)).perform(scrollTo(), click())
             onView(withText(R.string.phrasebook_title)).check(matches(isDisplayed()))
@@ -210,6 +216,8 @@ class MainActivityE2ETest {
     @Test
     fun primaryActionButtons_remainReachable() {
         ActivityScenario.launch(MainActivity::class.java).use {
+            onView(withId(R.id.transcript_button))
+                .check(matches(allOf(isDisplayed(), isEnabled())))
             onView(withId(R.id.toggle_listening_button))
                 .perform(scrollTo())
                 .check(matches(allOf(isDisplayed(), isEnabled())))

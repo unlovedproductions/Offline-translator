@@ -76,10 +76,12 @@ import kotlin.math.max
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private lateinit var subtitleTextView: TextView
-    private lateinit var conversationRecyclerView: RecyclerView
-    private lateinit var emptyStateTextView: TextView
-    private lateinit var searchInput: TextInputEditText
-    private lateinit var confidenceInfoButton: ImageButton
+    private var conversationRecyclerView: RecyclerView? = null
+    private var emptyStateTextView: TextView? = null
+    private var searchInput: TextInputEditText? = null
+    private var confidenceInfoButton: ImageButton? = null
+    private var transcriptDialog: AlertDialog? = null
+    private lateinit var transcriptButton: MaterialButton
     private lateinit var statusTextView: TextView
     private lateinit var listeningIndicatorIcon: ImageView
     private lateinit var micLevelMeter: ProgressBar
@@ -188,10 +190,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         showFavoritesOnly = preferences.getBoolean(PREF_SHOW_FAVORITES, false)
 
         subtitleTextView = findViewById(R.id.subtitle)
-        conversationRecyclerView = findViewById(R.id.conversation_recycler_view)
-        emptyStateTextView = findViewById(R.id.empty_state_text)
-        searchInput = findViewById(R.id.search_input)
-        confidenceInfoButton = findViewById(R.id.confidence_info_button)
         statusTextView = findViewById(R.id.status_text)
         listeningIndicatorIcon = findViewById(R.id.listening_indicator_icon)
         micLevelMeter = findViewById(R.id.mic_level_meter)
@@ -199,6 +197,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         micLevelValueText = findViewById(R.id.mic_level_value)
         modelDownloadProgress = findViewById(R.id.model_download_progress)
         modelSizeTextView = findViewById(R.id.model_size_text)
+        transcriptButton = findViewById(R.id.transcript_button)
         toggleListeningButton = findViewById(R.id.toggle_listening_button)
         clearButton = findViewById(R.id.clear_button)
         languageToggleButton = findViewById(R.id.language_toggle_button)
@@ -221,9 +220,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         voiceGermanSpinner = findViewById(R.id.voice_german_spinner)
 
         conversationAdapter = ConversationAdapter(filteredMessages)
-        conversationRecyclerView.layoutManager = LinearLayoutManager(this)
-        conversationRecyclerView.adapter = conversationAdapter
 
+        transcriptButton.setOnClickListener { showTranscriptDialog() }
         toggleListeningButton.setOnClickListener { toggleListening() }
         clearButton.setOnClickListener { clearConversation() }
         languageToggleButton.setOnClickListener { cycleLanguageMode() }
@@ -233,10 +231,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         favoritesButton.setOnClickListener { toggleFavoritesFilter() }
         phrasebookButton.setOnClickListener { showPhrasebook() }
         modelManagerButton.setOnClickListener { showModelManager() }
-        confidenceInfoButton.setOnClickListener { showConfidenceTooltip() }
         setupStartLanguageSpinner()
         setupSpeakerSpinner()
-        setupSearchInput()
         setupSilenceControls()
         setupNoiseReductionToggle()
         setupPushToTalkToggle()
@@ -366,8 +362,27 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
 
-    private fun setupSearchInput() {
-        searchInput.addTextChangedListener(object : TextWatcher {
+    private fun showTranscriptDialog() {
+        if (transcriptDialog?.isShowing == true) {
+            return
+        }
+
+        val dialogView = layoutInflater.inflate(R.layout.dialog_transcript, null)
+        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.conversation_recycler_view)
+        val emptyState = dialogView.findViewById<TextView>(R.id.empty_state_text)
+        val searchField = dialogView.findViewById<TextInputEditText>(R.id.search_input)
+        val confidenceButton = dialogView.findViewById<ImageButton>(R.id.confidence_info_button)
+
+        conversationRecyclerView = recyclerView
+        emptyStateTextView = emptyState
+        searchInput = searchField
+        confidenceInfoButton = confidenceButton
+
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.adapter = conversationAdapter
+        searchField.setText(currentSearchQuery)
+        searchField.setSelection(searchField.text?.length ?: 0)
+        searchField.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 applySearchFilter(s?.toString() ?: "")
             }
@@ -380,6 +395,25 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 // No-op
             }
         })
+        confidenceButton.setOnClickListener { showConfidenceTooltip() }
+        applySearchFilter(currentSearchQuery)
+
+        transcriptDialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setPositiveButton(R.string.close, null)
+            .create()
+            .also { dialog ->
+                dialog.setOnDismissListener {
+                    if (transcriptDialog === dialog) {
+                        conversationRecyclerView = null
+                        emptyStateTextView = null
+                        searchInput = null
+                        confidenceInfoButton = null
+                        transcriptDialog = null
+                    }
+                }
+                dialog.show()
+            }
     }
 
     private fun setupSpeakerSpinner() {
@@ -897,7 +931,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         conversationAdapter.notifyDataSetChanged()
         updateEmptyState()
         if (filteredMessages.isNotEmpty()) {
-            conversationRecyclerView.scrollToPosition(filteredMessages.size - 1)
+            conversationRecyclerView?.scrollToPosition(filteredMessages.size - 1)
         }
     }
 
@@ -917,7 +951,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         filteredMessages.clear()
         conversationAdapter.notifyDataSetChanged()
         currentSearchQuery = ""
-        searchInput.setText("")
+        searchInput?.setText("")
         deleteExportFiles()
         saveExportHistory(emptyList())
         updateEmptyState()
@@ -1586,20 +1620,22 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun updateEmptyState() {
+        val emptyState = emptyStateTextView ?: return
+        val recyclerView = conversationRecyclerView ?: return
         val isSearching = currentSearchQuery.isNotBlank()
         val isEmpty = filteredMessages.isEmpty()
-        emptyStateTextView.text = when {
+        emptyState.text = when {
             showFavoritesOnly && isSearching -> getString(R.string.favorites_search_empty_state)
             showFavoritesOnly -> getString(R.string.favorites_empty_state)
             isSearching -> getString(R.string.search_empty_state)
             else -> getString(R.string.empty_state)
         }
         if (isEmpty) {
-            emptyStateTextView.visibility = View.VISIBLE
-            conversationRecyclerView.visibility = View.GONE
+            emptyState.visibility = View.VISIBLE
+            recyclerView.visibility = View.GONE
         } else {
-            emptyStateTextView.visibility = View.GONE
-            conversationRecyclerView.visibility = View.VISIBLE
+            emptyState.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
         }
     }
 
