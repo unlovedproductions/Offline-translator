@@ -89,13 +89,13 @@ Includes Vosk (Apache-2.0) and Google ML Kit (Google terms). Full attribution in
 
 ## Gumroad product settings (checklist)
 
-- [ ] Price **$29** (or your pick inside $19–$39). Currency USD.
-- [ ] One-time purchase. Disable membership/subscription.
-- [ ] Upload **signed** release APK only (not debug, not `*-unsigned.apk`)
-- [ ] Version note matches `versionName` 1.0 / `versionCode` 1
-- [ ] File size warning: APK is large (~speech models bundled)
-- [ ] Refund policy filled in (Gumroad default is fine; state it)
-- [ ] No screenshots that claim “100% offline forever” or “HIPAA”
+- [x] Price **$29** (or your pick inside $19–$39). Currency USD.
+- [x] One-time purchase. Disable membership/subscription.
+- [x] Upload **signed** release APK only (not debug, not `*-unsigned.apk`) — `Puente-1.0.apk`
+- [x] Version note matches `versionName` 1.0 / `versionCode` 1
+- [ ] File size warning: APK is large (~388MB speech models bundled) — confirm in Gumroad UI; API returned size null
+- [x] Refund policy: 30 days
+- [x] No screenshots that claim “100% offline forever” or “HIPAA”
 - [ ] After each paid update: same signing key, higher `versionCode`
-- [ ] Product URL / website: **https://puente.unlovedproductions.com/**
-- [ ] Paste the live Gumroad URL into [`landing.html`](landing.html) (`BUY_URL`) so the site CTA leaves the subdomain
+- [x] Product URL / website: **https://puente.unlovedproductions.com/**
+- [x] Live listing: **https://unlovedproductions.gumroad.com/l/puente** (`BUY_URL` in [`landing.html`](landing.html))

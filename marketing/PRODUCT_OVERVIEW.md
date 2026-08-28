@@ -138,7 +138,7 @@ Platform: **Android** (API 23+). Sideload. ~2GB free space recommended.
 Put the shared-device interpreter on the counter.
 
 **Site:** https://puente.unlovedproductions.com/  
-**Get the APK — $29** (Gumroad — paste the live product URL into `landing.html` `BUY_URL`)  
+**Get the APK — $29:** https://unlovedproductions.gumroad.com/l/puente  
 **Questions:** support@unlovedproductions.com  
 **Product:** Puente by Unloved Productions
 
