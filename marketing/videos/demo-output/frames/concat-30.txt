@@ -1,0 +1,4 @@
+file '/home/unloved/Offline-translator/marketing/videos/demo-output/frames/01-hook-clip.mp4'
+file '/home/unloved/Offline-translator/marketing/videos/demo-output/frames/02-problem-clip.mp4'
+file '/home/unloved/Offline-translator/marketing/videos/demo-output/frames/03-magic-clip.mp4'
+file '/home/unloved/Offline-translator/marketing/videos/demo-output/frames/04-cta-30-clip.mp4'

@@ -99,3 +99,10 @@ Includes Vosk (Apache-2.0) and Google ML Kit (Google terms). Full attribution in
 - [ ] After each paid update: same signing key, higher `versionCode`
 - [x] Product URL / website: **https://puente.unlovedproductions.com/**
 - [x] Live listing: **https://unlovedproductions.gumroad.com/l/puente** (`BUY_URL` in [`landing.html`](landing.html))
+- [ ] **Cover videos** (pre-purchase carousel — not Content-tab / paywalled files):
+  1. Upload [`videos/puente-30s.mp4`](videos/puente-30s.mp4) as **first** cover
+  2. Upload [`videos/puente-60s.mp4`](videos/puente-60s.mp4) as **second** cover
+  3. Optional poster still: [`videos/puente-cover.jpg`](videos/puente-cover.jpg)
+  4. Optional subtitles: [`videos/puente-30s.vtt`](videos/puente-30s.vtt) / [`videos/puente-60s.vtt`](videos/puente-60s.vtt)
+- [x] Cover videos are **branded motion + UI mock** of the Transcript flow — not a live APK screencast. Do not claim otherwise.
+- [x] Cover copy stays honest: offline after setup / Wi‑Fi once; no HIPAA, air-gap, or Play Store claims
