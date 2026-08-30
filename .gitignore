@@ -2,6 +2,7 @@
 .gradle
 build
 gradle.properties.local
+*.local
 
 # Local Android SDK / NDK / signing
 local.properties
@@ -14,9 +15,15 @@ keystore.properties
 # Environment / secrets
 *.env
 *.env.*
+.envrc
 
-# JVM heap dumps
+# Hosting / local deploy
+.netlify/
+
+# JVM heap dumps / crash dumps
 *.hprof
+hs_err_pid*
+replay_pid*
 
 # Kotlin / Android local build artifacts
 .kotlin/
@@ -37,6 +44,9 @@ out/
 *.log
 *.bak
 *.orig
+*.tmp
+*.swp
+*.swo
 *~
 .DS_Store
 .directory
