@@ -1,0 +1,7 @@
+file '/home/unloved/Offline-translator/marketing/videos/demo-output/frames/01-hook-clip.mp4'
+file '/home/unloved/Offline-translator/marketing/videos/demo-output/frames/02-problem-clip.mp4'
+file '/home/unloved/Offline-translator/marketing/videos/demo-output/frames/03-magic-clip.mp4'
+file '/home/unloved/Offline-translator/marketing/videos/demo-output/frames/05-second-turn-clip.mp4'
+file '/home/unloved/Offline-translator/marketing/videos/demo-output/frames/06-transcript-clip.mp4'
+file '/home/unloved/Offline-translator/marketing/videos/demo-output/frames/07-export-clip.mp4'
+file '/home/unloved/Offline-translator/marketing/videos/demo-output/frames/08-cta-60-clip.mp4'

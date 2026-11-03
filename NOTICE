@@ -1,0 +1,24 @@
+Puente (Offline Translator)
+Copyright Unloved Productions
+
+This product includes software developed by third parties:
+
+Vosk Android (com.alphacephei:vosk-android)
+Copyright Alpha Cephei Inc / Vosk contributors
+Licensed under the Apache License, Version 2.0
+https://github.com/alphacep/vosk-api
+
+Bundled speech models
+- English (model-en): Copyright 2020 Alpha Cephei Inc
+- Spanish (model-es): see model README copyright
+- French (model-fr): see model README copyright
+- German (model-de): Apache License 2.0 (see app/src/main/assets/model-de/COPYING)
+
+Google ML Kit Translate and Language Identification
+Copyright Google LLC
+Use is subject to the ML Kit Terms of Service:
+https://developers.google.com/ml-kit/terms
+
+On-device translation inference runs locally after models are downloaded.
+ML Kit contacts Google for model download/updates and may send performance
+and utilization metrics as described in those terms.

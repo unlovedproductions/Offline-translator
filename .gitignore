@@ -1,5 +1,79 @@
-# Ignore Gradle project-specific cache directory
+# Gradle
 .gradle
-
-# Ignore Gradle build output directory
 build
+gradle.properties.local
+*.local
+
+# Local Android SDK / NDK / signing
+local.properties
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pem
+
+# Environment / secrets
+*.env
+*.env.*
+.envrc
+
+# Hosting / local deploy
+.netlify/
+
+# JVM heap dumps / crash dumps
+*.hprof
+hs_err_pid*
+replay_pid*
+
+# Kotlin / Android local build artifacts
+.kotlin/
+.cxx/
+.externalNativeBuild/
+captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+bin/
+gen/
+out/
+.navigation/
+
+# Logs / OS junk
+*.log
+*.bak
+*.orig
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+.directory
+Thumbs.db
+Desktop.ini
+
+# Local git / agent identity
+.gitconfig
+
+# IDE / local tooling (regenerated)
+.idea/
+.vscode/
+.fleet/
+.cursor/
+.junie/
+.ai/
+.emergent/
+.clawdea/
+*.iml
+*.ipr
+*.iws
+findbugs-android-exclude.xml
+findbugs*.xml
+
+# Agent / internal notes not needed to build
+memory/
+test_reports/
+spanish_model_test_analysis.md
+merge_recommendation_report.md
+IMPROVEMENT_SUGGESTIONS.md

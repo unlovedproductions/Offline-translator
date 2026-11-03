@@ -1,22 +1,30 @@
-# Offline Translator Android App
+# Puente Android App
 
-A conversational English-Spanish translation Android application that works completely offline. The app uses speech recognition to detect spoken language, translates it to the target language, and speaks the translation aloud, creating a seamless conversation experience.
+A conversational translation Android app for face-to-face turn-taking. Puente recognizes speech on-device (Vosk), translates with ML Kit, and speaks the result aloud (on-device Android TTS). Translation packs download from Google over **Wi‑Fi** on first use; after that, recognition and translation run locally. This is not an air-gapped product (see privacy below).
 
+Supports **Auto English ↔ Spanish**, plus manual **English ↔ Spanish**, **English ↔ French**, and **English ↔ German**.
 
 ## Features
 
-- **Offline Speech Recognition**: Uses Vosk speech recognition library for high-accuracy offline voice input.
-- **Offline Translation**: Utilizes Google ML Kit Translation API for high-quality English-Spanish translation.
-- **Text-to-Speech**: Integrated Android TTS for natural-sounding spoken translations.
-- **Language Detection**: Intelligent automatic detection of spoken language.
-- **Conversational Flow**: Optimized for natural back-and-forth communication.
-- **Modern UI**: Clean Material Design 3 interface with intuitive conversational controls.
+- **Offline speech recognition**: Vosk models for English, Spanish, French, and German
+- **Offline translation**: Google ML Kit Translation for EN↔ES, EN↔FR, and EN↔DE
+- **Text-to-speech**: Android TTS with per-language voice preferences
+- **Language modes**: Auto detect (EN↔ES), or manual pairs with start language and quick swap
+- **Conversation transcript**: Dialog (Transcript button) with search, timestamps, favorites, and confidence scores
+- **Push-to-talk**: Optional PTT, silence auto-stop, mic level meter, and noise reduction
+- **Export**: TXT / PDF / CSV export with share and export history
+- **Phrasebook**: Offline English/Spanish phrases
+- **Model Manager**: Simple (Vosk) or advanced (Vosk + ML Kit) model controls
+- **Speaker profiles**: Speaker A/B labeling for shared-device use
+- **Modern UI**: Material Design single-activity interface
 
-For a detailed list of supported languages and technical capabilities, see the [Feature Overview](FEATURE_OVERVIEW.md).
+For a full capability list, see the [Feature Overview](FEATURE_OVERVIEW.md).  
+Website-ready product copy: [marketing/PRODUCT_OVERVIEW.md](marketing/PRODUCT_OVERVIEW.md).  
+Gumroad listing: [marketing/GUMROAD_LISTING.md](marketing/GUMROAD_LISTING.md).  
+Release history: [CHANGELOG.md](CHANGELOG.md).  
+If the tree or keystore is lost: [RECOVERY.md](RECOVERY.md).
 
 ## Architecture
-
-The application is built using the following components:
 
 ### Core Libraries
 - **Vosk Android**: Offline speech recognition
@@ -25,17 +33,17 @@ The application is built using the following components:
 - **Android TTS**: Text-to-speech synthesis
 
 ### Key Components
-1. **MainActivity**: Main activity handling UI and orchestrating all components
-2. **Speech Recognition**: Vosk-based offline speech recognition
-3. **Translation Engine**: ML Kit translation with offline models
-4. **Language Detection**: ML Kit language identification
-5. **Text-to-Speech**: Android native TTS with multiple language support
+1. **MainActivity**: UI and orchestration
+2. **Speech Recognition**: Vosk-based offline STT
+3. **Translation Engine**: ML Kit translators with offline models
+4. **Language Detection**: ML Kit language identification (Auto mode)
+5. **Text-to-Speech**: Android native TTS with multi-language support
 
 ## Prerequisites
 
 - Android Studio Arctic Fox or later
-- Android SDK 21 (Android 5.0) or higher
-- Java 17 or Kotlin support
+- Android SDK 23 (Android 6.0) or higher (compile/target SDK 37)
+- JDK 17 or later
 - Minimum 2GB RAM for optimal performance
 - Storage space for offline models (~2GB)
 
@@ -44,65 +52,83 @@ The application is built using the following components:
 ### 1. Clone the Repository
 ```bash
 git clone <repository-url>
-cd OfflineTranslator
+cd Offline-translator
 ```
 
 ### 2. Open in Android Studio
 1. Open Android Studio
 2. Select "Open an Existing Project"
-3. Navigate to the OfflineTranslator directory
+3. Navigate to the `Offline-translator` directory
 4. Click "OK"
 
 ### 3. Sync Project
 Android Studio will automatically sync the project and download dependencies.
 
-### 4. Build and Run
-1. Connect an Android device or start an emulator
-2. Click "Run" or press Shift+F10
-3. The app will install and launch on your device
+### 4. Speech Model Setup
+1. English, Spanish, French, and German Vosk models are already included at:
+   - `app/src/main/assets/model-en/`
+   - `app/src/main/assets/model-es/`
+   - `app/src/main/assets/model-fr/`
+   - `app/src/main/assets/model-de/`
+2. If you want to replace them, download newer models and swap those folders.
+
+### 5. Build and Run
+1. Connect an Android device or start an emulator (API 23+)
+2. Click "Run" or `./gradlew :app:assembleDebug`
+3. The debug app id is `com.puente.offline.translator.debug`
+
+### Release build (Gumroad)
+
+Do not sell debug or unsigned APKs. See [RECOVERY.md](RECOVERY.md) and `keystore.properties.example`.
+
+```bash
+./gradlew :app:assembleRelease
+# signed APK: app/build/outputs/apk/release/app-release.apk
+```
 
 ## Usage
 
 ### First Launch
 1. Grant microphone permission when prompted
-2. Wait for the app to download translation models (requires internet for first time)
-3. The Vosk speech recognition model will be unpacked automatically
+2. Complete onboarding (default language mode)
+3. Wait for ML Kit translation models to download (**Wi‑Fi required** once)
+4. Vosk speech models unpack automatically from assets (each `model-*` folder needs a `uuid` file)
 
 ### Starting a Conversation
-1. Tap "Start Listening" to begin
-2. Speak in either English or Spanish
-3. The app will:
-   - Recognize your speech
-   - Detect the language
-   - Translate to the other language
-   - Speak the translation aloud
-   - Automatically start listening for a response
+1. Choose a language mode (Auto, EN↔ES, EN↔FR, or EN↔DE)
+2. Tap "Start Listening" (or use push-to-talk if enabled)
+3. Speak in one of the supported languages for that mode
+4. The app will recognize speech, translate, speak the result, and continue the turn flow
 
 ### Controls
 - **Start/Stop Listening**: Toggle voice recognition
-- **Clear Conversation**: Clear the conversation history
+- **Transcript**: Open searchable conversation history
+- **Push-to-talk**: Hold-to-speak mode when enabled
+- **Clear Conversation**: Clear history and delete local export files
+- **Export**: Save or share as TXT, PDF, or CSV
+- **Phrasebook / Model Manager**: Available from the main UI
 
 ## Technical Details
 
 ### Speech Recognition
-- Uses Vosk English model (vosk-model-en-us-0.22)
-- Supports continuous speech recognition
+- Uses Vosk speech models for English, Spanish, French, and German (`assets/model-en`, `model-es`, `model-fr`, `model-de`)
+- Supports continuous recognition and push-to-talk
 - Processes audio at 16kHz sample rate
 
 ### Translation
 - Google ML Kit Translation API
-- Offline models for English ↔ Spanish
-- Models are downloaded on first use and cached locally
+- Offline models for English ↔ Spanish, English ↔ French, and English ↔ German
+- Models download over Wi‑Fi on first use and are cached locally. Google may collect ML Kit utilization metrics ([ML Kit Terms](https://developers.google.com/ml-kit/terms)).
 
 ### Text-to-Speech
 - Android native TTS engine
-- Supports both English (US) and Spanish locales
-- Automatic language switching based on translation
+- Supports English, Spanish, French, and German locales
+- Automatic language switching based on translation; per-language **on-device** voice selection only
 
 ## File Structure
 
 ```
-OfflineTranslator/
+Offline-translator/
 ├── app/
 │   ├── src/
 │   │   ├── main/
@@ -110,24 +136,24 @@ OfflineTranslator/
 │   │   │   │   └── MainActivity.kt
 │   │   │   ├── res/
 │   │   │   │   ├── layout/
-│   │   │   │   │   └── activity_main.xml
 │   │   │   │   ├── values/
-│   │   │   │   │   ├── colors.xml
-│   │   │   │   │   ├── strings.xml
-│   │   │   │   │   └── themes.xml
 │   │   │   │   └── drawable/
-│   │   │   │       ├── ic_mic.xml
-│   │   │   │       └── ic_clear.xml
 │   │   │   ├── assets/
-│   │   │   │   └── model/ (Vosk model files)
+│   │   │   │   └── model-en/, model-es/, model-fr/, model-de/
 │   │   │   └── AndroidManifest.xml
-│   │   └── build.gradle.kts
+│   │   └── androidTest / test
 │   └── build.gradle.kts
+├── marketing/          # PRODUCT_OVERVIEW.md, GUMROAD_LISTING.md
 ├── gradle/
+├── FEATURE_OVERVIEW.md
+├── CHANGELOG.md
+├── RECOVERY.md
+├── SETUP_GUIDE.md
+├── LICENSE
+├── NOTICE
+├── README.md
 ├── gradlew
-├── gradlew.bat
-├── settings.gradle.kts
-└── README.md
+└── settings.gradle.kts
 ```
 
 ## Dependencies
@@ -136,20 +162,24 @@ The app uses the following key dependencies:
 
 ```kotlin
 dependencies {
-    implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.appcompat:appcompat:1.6.1")
-    implementation("com.google.android.material:material:1.11.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    implementation("org.vosk:vosk-android:0.3.45")
-    implementation("com.google.mlkit:language-id:17.0.4")
-    implementation("com.google.mlkit:translate:17.0.2")
+    implementation("androidx.core:core-ktx:1.19.0")
+    implementation("androidx.appcompat:appcompat:1.7.1")
+    implementation("com.google.android.material:material:1.14.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.2.2")
+    implementation("androidx.recyclerview:recyclerview:1.4.0")
+    implementation("com.alphacephei:vosk-android:0.3.75")
+    implementation("com.google.mlkit:language-id:17.0.6")
+    implementation("com.google.mlkit:translate:17.0.3")
 }
 ```
 
 ## Permissions
 
-The app requires the following permission:
-- `RECORD_AUDIO`: For speech recognition functionality
+The app requires:
+- `RECORD_AUDIO`: speech recognition
+- `WAKE_LOCK`: keep listening sessions awake
+
+Android backup of app data is disabled.
 
 ## Troubleshooting
 
@@ -161,7 +191,7 @@ The app requires the following permission:
    - Verify Vosk model is properly unpacked
 
 2. **Translation Not Working**
-   - Ensure internet connection for initial model download
+   - Ensure **Wi‑Fi** for the initial ML Kit model download
    - Check device storage space (models require ~100MB each)
    - Verify ML Kit services are available
 
@@ -173,19 +203,18 @@ The app requires the following permission:
 ### Performance Optimization
 
 - The app works best on devices with at least 2GB RAM
-- First launch requires internet for downloading translation models
-- Subsequent uses work completely offline
+- First launch requires **Wi‑Fi** for ML Kit translation models
+- After that, recognition and translation run on-device (ML Kit may still send utilization metrics)
 - Models are cached locally for faster access
 
 ## Future Enhancements
 
 Potential improvements for future versions:
 
-1. **Additional Languages**: Support for more language pairs
-2. **Conversation History**: Save and review past conversations
-3. **Custom Vocabulary**: Add domain-specific terms
-4. **Voice Training**: Improve recognition accuracy for specific users
-5. **Offline Language Packs**: Pre-bundled language models
+1. **More language pairs** beyond EN↔ES / EN↔FR / EN↔DE
+2. **Custom / domain vocabulary** for specialized workflows
+3. **On-demand model downloads** with clearer per-language progress
+4. **Phrasebook search and audio playback**
 
 ## Support
 
@@ -193,5 +222,5 @@ For support, contact support@unlovedproductions.com
 
 ## License
 
-© unlovedproductions. All rights reserved. This application is proprietary software. Unauthorized copying, distribution, or modification is strictly prohibited.
-
+Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Buyers of the Gumroad APK are paying for the signed build and email support, not exclusive rights.

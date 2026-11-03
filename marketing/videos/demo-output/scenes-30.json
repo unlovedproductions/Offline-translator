@@ -1,0 +1,36 @@
+{
+  "title": "Puente 30s Gumroad cover",
+  "width": 1920,
+  "height": 1080,
+  "voice": "en-US-AndrewNeural",
+  "scenes": [
+    {
+      "id": "01-hook",
+      "html": "scenes/01-hook.html",
+      "narration": "narration/01-hook.txt",
+      "duration": 4.0,
+      "caption": "Never pass 2 phones across the counter again."
+    },
+    {
+      "id": "02-problem",
+      "html": "scenes/02-problem.html",
+      "narration": "narration/02-problem.txt",
+      "duration": 6.0,
+      "caption": "You should not juggle two phones across the counter."
+    },
+    {
+      "id": "03-magic",
+      "html": "scenes/03-magic.html",
+      "narration": "narration/03-magic.txt",
+      "duration": 12.0,
+      "caption": "One tablet. Speak. Hear the translation. Keep the transcript."
+    },
+    {
+      "id": "04-cta-30",
+      "html": "scenes/04-cta-30.html",
+      "narration": "narration/04-cta-30.txt",
+      "duration": 8.0,
+      "caption": "Get the Android APK — $29 one-time"
+    }
+  ]
+}

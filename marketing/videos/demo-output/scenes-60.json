@@ -1,0 +1,57 @@
+{
+  "title": "Puente 60s Gumroad cover",
+  "width": 1920,
+  "height": 1080,
+  "voice": "en-US-AndrewNeural",
+  "scenes": [
+    {
+      "id": "01-hook",
+      "html": "scenes/01-hook.html",
+      "narration": "narration/01-hook.txt",
+      "duration": 4.0,
+      "caption": "Never pass 2 phones across the counter again."
+    },
+    {
+      "id": "02-problem",
+      "html": "scenes/02-problem.html",
+      "narration": "narration/02-problem.txt",
+      "duration": 6.0,
+      "caption": "You should not juggle two phones across the counter."
+    },
+    {
+      "id": "03-magic",
+      "html": "scenes/03-magic.html",
+      "narration": "narration/03-magic.txt",
+      "duration": 12.0,
+      "caption": "One tablet. Speak. Hear the translation. Keep the transcript."
+    },
+    {
+      "id": "05-second-turn",
+      "html": "scenes/05-second-turn.html",
+      "narration": "narration/05-second-turn.txt",
+      "duration": 12.0,
+      "caption": "Two speakers. One device. Take turns."
+    },
+    {
+      "id": "06-transcript",
+      "html": "scenes/06-transcript.html",
+      "narration": "narration/06-transcript.txt",
+      "duration": 10.0,
+      "caption": "A bilingual log you can hand off to the next shift."
+    },
+    {
+      "id": "07-export",
+      "html": "scenes/07-export.html",
+      "narration": "narration/07-export.txt",
+      "duration": 8.0,
+      "caption": "Export TXT / PDF / CSV · hand off to the next shift"
+    },
+    {
+      "id": "08-cta-60",
+      "html": "scenes/08-cta-60.html",
+      "narration": "narration/08-cta-60.txt",
+      "duration": 8.0,
+      "caption": "Get the APK — $29 · Offline after setup · Wi‑Fi once"
+    }
+  ]
+}

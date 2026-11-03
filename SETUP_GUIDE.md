@@ -1,6 +1,6 @@
-# Offline Translator Setup Guide
+# Puente Setup Guide
 
-This guide provides step-by-step instructions for setting up and building the Offline Translator Android application.
+This guide provides step-by-step instructions for setting up and building the Puente Android application.
 
 ## System Requirements
 
@@ -12,7 +12,7 @@ This guide provides step-by-step instructions for setting up and building the Of
 - **Storage**: At least 10GB free space
 
 ### Target Device Requirements
-- **Android Version**: API level 21 (Android 5.0) or higher
+- **Android Version**: API level 23 (Android 6.0) or higher
 - **RAM**: Minimum 2GB (4GB recommended for optimal performance)
 - **Storage**: 3GB free space for models and app data
 - **Microphone**: Required for speech input
@@ -31,8 +31,8 @@ This guide provides step-by-step instructions for setting up and building the Of
 2. Go to File → Settings (or Android Studio → Preferences on macOS)
 3. Navigate to Appearance & Behavior → System Settings → Android SDK
 4. Ensure the following are installed:
-   - Android SDK Platform 34
-   - Android SDK Build-Tools 34.0.0
+   - Android SDK Platform 37
+   - Android SDK Build-Tools 37.0.0
    - Android SDK Command-line Tools
    - Android Emulator (if using emulator)
 
@@ -46,32 +46,36 @@ This guide provides step-by-step instructions for setting up and building the Of
 **For Emulator:**
 1. Open AVD Manager in Android Studio
 2. Create a new virtual device
-3. Choose a device with API level 21 or higher
+3. Choose a device with API level 23 or higher
 4. Ensure the emulator has sufficient RAM (2GB+)
 
 ## Project Setup
 
 ### 1. Download Project Files
-Extract the provided project files to a directory on your computer, for example:
+Extract or clone the project to a directory on your computer, for example:
 ```
-C:\AndroidProjects\OfflineTranslator  (Windows)
-~/AndroidProjects/OfflineTranslator   (macOS/Linux)
+C:\AndroidProjects\Offline-translator  (Windows)
+~/AndroidProjects/Offline-translator   (macOS/Linux)
 ```
 
 ### 2. Open Project in Android Studio
 1. Launch Android Studio
 2. Click "Open an Existing Project"
-3. Navigate to the OfflineTranslator directory
+3. Navigate to the `Offline-translator` directory
 4. Click "OK"
 5. Wait for the project to sync (this may take several minutes)
 
-### 3. Download Vosk Model
-The Vosk speech recognition model needs to be downloaded and placed in the correct location:
+### 3. Verify Vosk Models (English, Spanish, French, German)
+The English, Spanish, French, and German Vosk models are included in the repository at:
+- `app/src/main/assets/model-en/`
+- `app/src/main/assets/model-es/`
+- `app/src/main/assets/model-fr/`
+- `app/src/main/assets/model-de/`
 
-1. Download the English model from: https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip
-2. Extract the ZIP file
-3. Copy the extracted folder to: `app/src/main/assets/model/`
-4. The final path should be: `app/src/main/assets/model/vosk-model-en-us-0.22/`
+If you want to replace them:
+1. Download updated models from https://alphacephei.com/vosk/models
+2. Extract the ZIP files
+3. Replace the contents of `model-en/`, `model-es/`, `model-fr/`, and `model-de/` accordingly
 
 ### 4. Sync Project Dependencies
 1. In Android Studio, click "Sync Now" if prompted
@@ -127,31 +131,31 @@ On first launch:
 3. Wait for initial setup to complete
 
 ### 3. Download Translation Models
-On first use with internet connection:
-1. The app will download ML Kit translation models
-2. This requires ~200MB of data
-3. Models are cached for offline use
+On first use over **Wi‑Fi**:
+1. The app downloads ML Kit translation models for the active language pairs (EN↔ES, EN↔FR, EN↔DE as used)
+2. Allow enough storage and data for offline model caches (~100MB per language pack is typical)
+3. Models are cached locally; after download, recognition and translation work offline
+4. Vosk speech models (EN/ES/FR/DE) ship in assets and unpack on device—no separate download required
 
 ## Verification and Testing
 
 ### 1. Test Speech Recognition
-1. Tap "Start Listening"
+1. Tap "Start Listening" (or enable push-to-talk if preferred)
 2. Speak clearly in English
-3. Verify text appears in the conversation area
-4. Check that the app stops listening after speech
+3. Tap **Transcript** and verify text appears in the dialog
+4. Check that listening stops on silence (if auto-stop is enabled) or when you stop PTT
 
 ### 2. Test Translation
-1. Speak an English phrase
-2. Verify Spanish translation appears
-3. Check that translated text is spoken aloud
-4. Confirm app switches to listening for Spanish
+1. Use Auto or EN↔ES mode; speak an English phrase
+2. Verify Spanish translation appears and is spoken aloud
+3. Optionally switch to EN↔FR or EN↔DE and confirm those pairs translate correctly
 
 ### 3. Test Conversation Flow
-1. Start with English phrase
+1. Start with an English phrase in Auto or EN↔ES mode
 2. Wait for Spanish translation and speech
 3. Respond in Spanish
 4. Verify English translation and speech
-5. Confirm continuous conversation flow
+5. Confirm continuous conversation turn-taking
 
 ## Troubleshooting
 
@@ -179,7 +183,7 @@ org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m
 ### Runtime Issues
 
 **Microphone Permission Denied:**
-1. Go to device Settings → Apps → OfflineTranslator → Permissions
+1. Go to device Settings → Apps → Puente → Permissions
 2. Enable Microphone permission
 3. Restart the app
 
@@ -189,7 +193,7 @@ org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m
 3. Check app logs for error messages
 
 **Translation Not Working:**
-1. Ensure internet connection for initial model download
+1. Ensure **Wi‑Fi** for the initial model download
 2. Check available storage space
 3. Verify ML Kit services are installed
 
@@ -215,23 +219,27 @@ org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m
 ### Custom Model Configuration
 To use different Vosk models:
 1. Download desired model from Vosk website
-2. Replace model in `app/src/main/assets/model/`
-3. Update model name in MainActivity.kt if necessary
+2. Replace model in `app/src/main/assets/model-en/`, `model-es/`, `model-fr/`, or `model-de/`
+3. Update model path constants in MainActivity.kt if necessary
 
 ### Build Variants
-The project supports debug and release builds:
-- Debug: Includes logging and debugging features
-- Release: Optimized for production use
+- Debug: `applicationId` suffix `.debug`; debuggable; do not sell
+- Release: minified; signed if `keystore.properties` is present
 
 ### Signing Configuration
-For release builds, configure signing:
-1. Generate keystore file
-2. Add signing configuration to build.gradle
-3. Build signed APK for distribution
+For Gumroad / paid APKs:
+1. Copy `keystore.properties.example` to `keystore.properties` (gitignored)
+2. Point `storeFile` at your `.jks` (see [RECOVERY.md](RECOVERY.md))
+3. `./gradlew :app:assembleRelease`
+4. Ship only `app/build/outputs/apk/release/app-release.apk`
 
 ## Support and Resources
 
 ### Documentation
+- [README](README.md) — product and developer overview
+- [Feature Overview](FEATURE_OVERVIEW.md) — full capability list
+- [Changelog](CHANGELOG.md) — release history
+- [Recovery](RECOVERY.md) — restore source, keystore, signed APK
 - Android Developer Guide: https://developer.android.com/guide
 - Vosk Documentation: https://alphacephei.com/vosk/
 - ML Kit Documentation: https://developers.google.com/ml-kit
@@ -241,5 +249,5 @@ For release builds, configure signing:
 - GitHub Issues: Report bugs and feature requests
 - Android Developer Community: https://developer.android.com/community
 
-This setup guide should help you successfully build and deploy the Offline Translator application. If you encounter any issues not covered here, please refer to the troubleshooting section or seek community support.
+This setup guide should help you successfully build and deploy the Puente application. If you encounter any issues not covered here, please refer to the troubleshooting section or seek community support.
 

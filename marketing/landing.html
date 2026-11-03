@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Puente — Shared-device offline interpreter for Android</title>
+  <meta name="description" content="Never pass 2 phones across the counter. Puente runs face-to-face translation on one Android tablet — $29 one-time, offline after setup.">
+  <link rel="canonical" href="https://puente.unlovedproductions.com/">
+  <meta property="og:url" content="https://puente.unlovedproductions.com/">
+  <meta property="og:title" content="Puente — Shared-device offline interpreter for Android">
+  <meta property="og:description" content="Never pass 2 phones across the counter. Face-to-face translation on one Android tablet — $29 one-time, offline after setup.">
+  <meta property="og:type" content="website">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy:       #0A1628;
+      --navy-mid:   #0D1F38;
+      --teal:       #00D4AA;
+      --teal-glow:  rgba(0, 212, 170, 0.12);
+      --amber:      #F5A623;
+      --off-white:  #F7F7F2;
+      --text-muted: rgba(247, 247, 242, 0.68);
+      --card-bg:    rgba(0, 212, 170, 0.06);
+      --card-border:rgba(0, 212, 170, 0.15);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--navy);
+      color: var(--off-white);
+      line-height: 1.55;
+      overflow-x: hidden;
+    }
+    a { color: var(--teal); }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 20px;
+    }
+
+    .btn-primary {
+      display: inline-block;
+      background: var(--teal);
+      color: var(--navy);
+      font-size: 18px;
+      font-weight: 500;
+      text-decoration: none;
+      padding: 16px 28px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.25s ease, filter 0.25s ease;
+    }
+    .btn-primary:hover { transform: translateY(-3px); filter: brightness(1.08); }
+    .btn-ghost {
+      display: inline-block;
+      color: var(--off-white);
+      font-size: 16px;
+      font-weight: 500;
+      text-decoration: none;
+      padding: 16px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+    }
+
+    /* Hero */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 120px 24px 80px;
+    }
+    .hero-shapes-back, .hero-shapes-mid {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .shape {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(40px);
+    }
+    .hero-shapes-back .shape-a {
+      width: 420px; height: 420px;
+      background: rgba(0, 212, 170, 0.18);
+      top: -80px; left: -60px;
+      animation: floatA 12s ease-in-out infinite;
+    }
+    .hero-shapes-back .shape-b {
+      width: 280px; height: 280px;
+      background: rgba(245, 166, 35, 0.12);
+      bottom: 10%; right: 8%;
+      animation: floatB 16s ease-in-out infinite;
+    }
+    .hero-shapes-mid .shape-c {
+      width: 140px; height: 140px;
+      background: rgba(0, 212, 170, 0.28);
+      filter: blur(8px);
+      top: 28%; right: 18%;
+      animation: floatC 10s ease-in-out infinite;
+    }
+    @keyframes floatA {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      50%      { transform: translate(20px, -30px) rotate(8deg); }
+    }
+    @keyframes floatB {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      50%      { transform: translate(-24px, 18px) rotate(-6deg); }
+    }
+    @keyframes floatC {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      50%      { transform: translate(12px, 22px) rotate(12deg); }
+    }
+    .hero h1 {
+      font-size: 72px;
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: -0.03em;
+      max-width: 16ch;
+    }
+    .hero .subtitle {
+      font-size: 18px;
+      color: var(--text-muted);
+      max-width: 42em;
+      margin: 24px 0 36px;
+    }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+    .price-chip {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+    .scroll-down {
+      position: absolute;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 28px;
+      height: 28px;
+      border-right: 2px solid var(--teal);
+      border-bottom: 2px solid var(--teal);
+      transform: translateX(-50%) rotate(45deg);
+      animation: bounce 2s ease-in-out infinite;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateX(-50%) rotate(45deg) translateY(0); }
+      50%      { transform: translateX(-50%) rotate(45deg) translateY(8px); }
+    }
+
+    /* Features */
+    .features { padding: 120px 24px; }
+    .features h2, .how h2, .pricing h2, .honesty h2, .closing-cta h2 {
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 16px;
+    }
+    .section-lead {
+      font-size: 18px;
+      color: var(--text-muted);
+      max-width: 40em;
+      margin-bottom: 56px;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      perspective: 900px;
+    }
+    .feature-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 28px;
+      transition: transform 0.3s ease, border-color 0.3s ease;
+    }
+    .feature-card:hover {
+      transform: translateY(-6px);
+      border-color: var(--teal);
+    }
+    .feature-card svg {
+      width: 28px;
+      height: 28px;
+      stroke: var(--teal);
+      fill: none;
+      stroke-width: 1.8;
+      margin-bottom: 16px;
+    }
+    .feature-card h3 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .feature-card p {
+      font-size: 16px;
+      color: var(--text-muted);
+    }
+
+    /* How */
+    .how { padding: 0 24px 120px; }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+    .step {
+      border-top: 1px solid var(--card-border);
+      padding-top: 20px;
+    }
+    .step-num { color: var(--teal); font-weight: 600; font-size: 13px; letter-spacing: 0.12em; }
+    .step h3 { font-size: 20px; font-weight: 700; margin: 8px 0; }
+    .step p { font-size: 15px; color: var(--text-muted); }
+
+    /* Pricing */
+    .pricing { padding: 120px 24px; background: var(--navy-mid); }
+    .price-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+    .price-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 36px;
+    }
+    .price-card.featured { border-color: var(--teal); }
+    .price-card .amount {
+      font-size: 52px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 12px 0 8px;
+    }
+    .price-card ul {
+      list-style: none;
+      margin: 24px 0;
+      color: var(--text-muted);
+      font-size: 16px;
+    }
+    .price-card li { margin: 8px 0; padding-left: 0; }
+    .fine { font-size: 14px; color: var(--text-muted); margin-top: 16px; }
+
+    .honesty { padding: 120px 24px; }
+    .honesty-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+    .honesty p { color: var(--text-muted); font-size: 16px; }
+
+    /* Closing */
+    .closing-cta {
+      position: relative;
+      padding: 120px 24px;
+      background: var(--navy-mid);
+      text-align: center;
+    }
+    .cta-glow {
+      position: absolute;
+      left: 50%;
+      bottom: 80px;
+      width: 420px;
+      height: 220px;
+      transform: translateX(-50%);
+      background: radial-gradient(circle, var(--teal-glow) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .closing-cta h2 { max-width: 16ch; margin: 0 auto 16px; }
+    .closing-cta .section-lead { margin: 0 auto 36px; }
+    .closing-cta .btn-primary { position: relative; z-index: 1; }
+
+    footer {
+      padding: 40px 24px 64px;
+      color: var(--text-muted);
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 900px) {
+      .hero h1 { font-size: 56px; }
+      .features h2, .how h2, .pricing h2, .honesty h2, .closing-cta h2 { font-size: 42px; }
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+      .steps { grid-template-columns: repeat(2, 1fr); }
+      .price-grid, .honesty-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 580px) {
+      .hero { padding: 96px 24px 72px; }
+      .hero h1 { font-size: 52px; }
+      .features, .pricing, .honesty, .closing-cta { padding: 80px 24px; }
+      .how { padding: 0 24px 80px; }
+      .features-grid, .steps { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Intake locked from GTM plan: product=Puente shared-device interpreter; audience=business/front-of-house; brand=default navy+teal; tone=professional. -->
+  <header class="hero">
+    <div class="hero-shapes-back">
+      <div class="shape shape-a"></div>
+      <div class="shape shape-b"></div>
+    </div>
+    <div class="hero-shapes-mid">
+      <div class="shape shape-c"></div>
+    </div>
+    <div class="container">
+      <span class="eyebrow">Puente · Android APK</span>
+      <h1>Never pass 2 phones across the counter again.</h1>
+      <p class="subtitle">Face-to-face interpreting on a shared Android tablet. Speak, hear the translation, keep the transcript — offline after the first model download.</p>
+      <div class="hero-actions">
+        <a class="btn-primary js-buy" href="#buy">Get the APK — $29</a>
+        <a class="btn-ghost" href="#honesty">Read the privacy limits</a>
+      </div>
+      <p class="price-chip" style="margin-top:20px">One-time. Sideload. Not a subscription. Not HIPAA.</p>
+    </div>
+    <div class="scroll-down" aria-hidden="true"></div>
+  </header>
+
+  <section class="features">
+    <div class="container">
+      <h2>Built for the tablet that stays on the desk.</h2>
+      <p class="section-lead">Google Translate is free on a personal phone. Puente is the workflow when two people share one device and the guest network cannot be the plan.</p>
+      <div class="features-grid">
+        <article class="feature-card">
+          <svg viewBox="0 0 24 24"><path d="M8 9h8M8 13h5"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 20v2M17 20v2"/></svg>
+          <h3>One tablet, two speakers</h3>
+          <p>Speaker A/B labels and a language swap so staff and guest are not juggling two phones.</p>
+        </article>
+        <article class="feature-card">
+          <svg viewBox="0 0 24 24"><path d="M12 3v3M5 7l2 2M19 7l-2 2"/><circle cx="12" cy="14" r="6"/><path d="M12 11v3l2 1"/></svg>
+          <h3>Offline after setup</h3>
+          <p>Download translation packs once over Wi-Fi. Recognition and translation then run on the device.</p>
+        </article>
+        <article class="feature-card">
+          <svg viewBox="0 0 24 24"><path d="M8 17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3"/><rect x="10" y="11" width="11" height="9" rx="2"/><path d="M13 15h5"/></svg>
+          <h3>A log you can hand off</h3>
+          <p>Search, favorite, and export TXT, PDF, or CSV when the visit ends. The next shift can read what was asked.</p>
+        </article>
+        <article class="feature-card">
+          <svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 1 6 6v2a6 6 0 0 1-12 0V9a6 6 0 0 1 6-6z"/><path d="M12 17v3M8 21h8"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/></svg>
+          <h3>Turns in a real lobby</h3>
+          <p>Optional push-to-talk, silence auto-stop, mic level, and confidence on each turn — retry instead of guessing.</p>
+        </article>
+        <article class="feature-card">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7"/></svg>
+          <h3>Four language pairs</h3>
+          <p>Auto English ↔ Spanish, plus manual English ↔ Spanish, French, and German. Not a 100-language tourist app.</p>
+        </article>
+        <article class="feature-card">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <h3>$29, one time</h3>
+          <p>The signed APK and email support. Dedicated gadgets list around $280–$350. No monthly plan to forget.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="how">
+    <div class="container">
+      <h2>On the counter in four steps.</h2>
+      <p class="section-lead">Sideload, not Play Store. Budget ~2GB free space for speech and translation models.</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">01</div>
+          <h3>Buy once</h3>
+          <p>$29 on Gumroad. Download the signed Android APK (6.0+).</p>
+        </div>
+        <div class="step">
+          <div class="step-num">02</div>
+          <h3>Set up once</h3>
+          <p>Allow unknown sources, grant the mic, download ML Kit packs on Wi-Fi.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">03</div>
+          <h3>Take turns</h3>
+          <p>Auto EN↔ES, or lock EN↔ES / FR / DE. Speak or hold push-to-talk.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">04</div>
+          <h3>Keep the record</h3>
+          <p>Star key lines. Export TXT, PDF, or CSV through the share sheet.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pricing" id="buy">
+    <div class="container">
+      <h2>One price. One APK.</h2>
+      <p class="section-lead">Test price $29 (range $19–$39). You are buying the signed build and support, not exclusive rights — the app is Apache-2.0.</p>
+      <div class="price-grid">
+        <div class="price-card featured">
+          <span class="eyebrow">Primary</span>
+          <div class="amount">$29</div>
+          <p>Single device · one-time</p>
+          <ul>
+            <li>Signed release APK (v1.0)</li>
+            <li>Auto EN↔ES + manual EN↔FR / EN↔DE</li>
+            <li>Transcript, favorites, TXT/PDF/CSV export</li>
+            <li>Email support</li>
+          </ul>
+          <a class="btn-primary js-buy" href="#buy">Buy on Gumroad</a>
+          <p class="fine">Sideload APK. Android 6.0+. ~2GB free space. Not a Play Store install.</p>
+        </div>
+        <div class="price-card">
+          <span class="eyebrow">Workplace</span>
+          <div class="amount">$99</div>
+          <p>Up to 5 devices · one-time</p>
+          <ul>
+            <li>Same APK</li>
+            <li>Honor-system 5-device install</li>
+            <li>Same support inbox</li>
+          </ul>
+          <a class="btn-ghost" href="mailto:support@unlovedproductions.com?subject=Puente%205-pack">Ask for the 5-pack</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="honesty" id="honesty">
+    <div class="container">
+      <h2>What this is not.</h2>
+      <div class="honesty-grid">
+        <div>
+          <h3 style="font-size:22px;font-weight:700;margin-bottom:12px">Privacy, stated plainly</h3>
+          <p>Speech recognition uses on-device Vosk models bundled with the app. Translation uses Google ML Kit after a Wi-Fi download. Google may collect ML Kit utilization metrics. Spoken playback is on-device TTS. Exports leave the device only if you share them. Android backup of app data is disabled.</p>
+        </div>
+        <div>
+          <h3 style="font-size:22px;font-weight:700;margin-bottom:12px">Wrong jobs</h3>
+          <p>Not HIPAA. Not a BAA. Not certified medical or legal interpreting. Not 100 languages. Not iOS. Not a Play Store listing yet. If you need a certified interpreter, hire one. If you only need Google Translate on your own phone, use that — it is free.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="closing-cta">
+    <div class="cta-glow"></div>
+    <div class="container">
+      <h2>Put the interpreter on the counter.</h2>
+      <p class="section-lead">$29 one-time. Sideload on Android 6.0+. Offline after setup.</p>
+      <a class="btn-primary js-buy" href="#buy">Get the Android APK — $29</a>
+    </div>
+  </section>
+
+  <footer class="container">
+    <span>Puente by Unloved Productions · <a href="https://puente.unlovedproductions.com/">puente.unlovedproductions.com</a></span>
+    <span><a href="mailto:support@unlovedproductions.com">support@unlovedproductions.com</a></span>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <script>
+    /* BUY_URL: set to the live Gumroad product URL, e.g. "https://unlovedproductions.gumroad.com/l/puente" */
+    const BUY_URL = "https://unlovedproductions.gumroad.com/l/puente";
+    document.querySelectorAll(".js-buy").forEach((el) => {
+      el.setAttribute("href", BUY_URL);
+    });
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    gsap.set([".eyebrow", ".hero h1", ".hero .subtitle", ".btn-primary", ".scroll-down", ".price-chip", ".btn-ghost"], {
+      opacity: 0,
+      y: 30
+    });
+
+    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+    tl.to(".eyebrow", { opacity: 1, y: 0, duration: 0.6 })
+      .to(".hero h1", { opacity: 1, y: 0, duration: 0.8 }, "-=0.3")
+      .to(".hero .subtitle", { opacity: 1, y: 0, duration: 0.6 }, "-=0.5")
+      .to(".btn-primary", { opacity: 1, y: 0, duration: 0.5 }, "-=0.3")
+      .to(".btn-ghost", { opacity: 1, y: 0, duration: 0.4 }, "-=0.35")
+      .to(".price-chip", { opacity: 1, y: 0, duration: 0.4 }, "-=0.3")
+      .to(".scroll-down", { opacity: 1, y: 0, duration: 0.4 }, "-=0.2");
+
+    gsap.set(".feature-card", { opacity: 0, y: 55, rotateX: 18 });
+    ScrollTrigger.batch(".feature-card", {
+      start: "top 80%",
+      onEnter: batch => gsap.to(batch, {
+        opacity: 1, y: 0, rotateX: 0,
+        duration: 0.8,
+        stagger: 0.11,
+        ease: "power2.out"
+      })
+    });
+
+    const hero = document.querySelector(".hero");
+    hero.addEventListener("mousemove", (e) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * 2;
+      const y = (e.clientY / window.innerHeight - 0.5) * 2;
+      gsap.to(".hero-shapes-back", { x: x * 45, y: y * 22, duration: 0.8 });
+      gsap.to(".hero-shapes-mid",  { x: x * 22, y: y * 11, duration: 0.8 });
+      gsap.to(".hero .container",  { x: x * 8,  y: y * 5,  duration: 0.8 });
+    });
+  </script>
+</body>
+</html>
